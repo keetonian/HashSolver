@@ -65,16 +65,29 @@ uint32_t get_location(uint32_t index){
 
 void write_table_to_file(const char * filename){
   FILE *f = fopen(filename, "wb");
-  size_t data = fwrite(hashtable, sizeof(info), table_size, f);
+  // Write the table seed size first:
+  size_t data = fwrite(&seed_size, sizeof(uint64_t), 1, f);
+  if(data != 1){
+    printf("Not enough room on disk\n");
+  }
+
+  data = fwrite(hashtable, sizeof(info), table_size, f);
   if(data != table_size)
     printf("Elements written: %zu/%zu\n", data, table_size);
   fclose(f);
 }
 
-void read_table_from_file(char * filename){
+void read_table_from_file(const char * filename){
   FILE *f = fopen(filename, "rb");
+  uint64_t size[1];
+  size_t data = fread(size, sizeof(uint64_t), 1, f);
+  if(data != 1)
+    printf("Seed size not read from the table\n");
+  set_seed_size(size[0]);
+
   initialize_hashtable();
-  size_t data = fread(hashtable, sizeof(info), table_size, f);
+  data = fread(hashtable, sizeof(info), table_size, f);
+  if(data != table_size)
     printf("Elements read: %zu/%zu\n", data, table_size);
   fclose(f);
 }
@@ -99,21 +112,19 @@ void write_locations_to_file(const char * filename){
   fclose(f);
 }
 
-void read_locations_from_file(char * filename){
+void read_locations_from_file(const char * filename){
   FILE *f = fopen(filename, "rb");
   size_t size[1];
 
-  printf("reading size\n");
   // Get the size of the list (first element)
   size_t data = fread(size, sizeof(size_t), 1, f);
   if(data != 1)
     printf("Size of locations not read \n");
-  //printf("%zu\n", size[0]);
-  printf("read size. initializing location\n");
+
   initialize_location(size[0]);
 
   data = fread(locations, sizeof(uint32_t), locations_size, f);
   if(data != locations_size)
-    printf("Elements read: %zu/%zu\n", data, locations_size);
+    printf("Not enough memory. Elements read: %zu/%zu\n", data, locations_size);
   fclose(f);
 }

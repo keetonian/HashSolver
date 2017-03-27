@@ -49,9 +49,9 @@ extern "C" {
   uint32_t get_location(uint32_t index);
 
   void write_table_to_file(const char * filename);
-  void read_table_from_file(char * filename);
+  void read_table_from_file(const char * filename);
   void write_locations_to_file(const char * filename);
-  void read_locations_from_file(char * filename);
+  void read_locations_from_file(const char * filename);
 
   void free_memory();
 

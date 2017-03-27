@@ -99,6 +99,23 @@ int main(int argc, char** argv){
     return 1;
   }
 
+  // Change all single N's to random bases
+  for(uint32_t i = 1; i < genome_vector.size()-1; i++){
+    if(genome_vector.at(i) == 'N' && genome_vector.at(i-1) != 'N' && genome_vector.at(i+1) != 'N'){
+      uint32_t r = rand() % 4;
+      switch(r){
+	case 0: genome_vector.at(i) = 'A';
+		break;
+	case 1: genome_vector.at(i) = 'C';
+		break;
+	case 2: genome_vector.at(i) = 'G';
+		break;
+	case 3: genome_vector.at(i) = 'T';
+		break;
+      }
+    }
+  }
+
   cout << "Read reference genome" << endl;
 
   uint64_t genome_size = genome_vector.size();
