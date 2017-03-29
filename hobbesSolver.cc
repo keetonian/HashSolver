@@ -94,6 +94,8 @@ unsigned int HobbesSolver::solveDNA(string DNA) {
     uint64_t hash = get_hash(seed.c_str());
 
     invertedList[i] = get_frequency(hash);
+    if(get_frequency(hash) > 0 && get_location(get_offset(hash)) < 100)
+      cout << "ERRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR" << endl;
   }
 
   //cout << "\n";
