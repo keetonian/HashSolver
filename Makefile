@@ -3,7 +3,7 @@ CFLAGS=-std=c++11 -O2 -Wall -Wno-unused-variable -pthread -lpthread
 
 all: build query
 
-build: construct_table_thread.cpp hashtable.o
+build: construct_table.cpp hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^
 
 hashtable.o: hashtable.h hashtable.c
