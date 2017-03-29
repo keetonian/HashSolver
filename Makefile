@@ -13,7 +13,7 @@ query: query_hash.cpp hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^
 
 clean:
-	rm build *.o query
+	rm build hashtable.o query
 
 run:
 	./build ../human_g1k_v37_hs37d5.fasta 2 14 16

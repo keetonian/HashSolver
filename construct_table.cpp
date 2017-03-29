@@ -8,64 +8,82 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <stdlib.h>
 //#include <boost/thread.hpp>
 
 using namespace std;
 
 mutex mtx;
-void init_table(unsigned int start, unsigned int end, vector<uint32_t> ** table);
-void fill_table(unsigned int start, unsigned int end, unsigned int step, unsigned int seed, vector<uint32_t> ** table, vector<char> *genome);
+char random_base();
+void init_table(uint64_t start, uint64_t end, vector<uint32_t> ** table);
+void fill_table(uint64_t step, uint64_t seed, vector<uint32_t> ** table, vector<char> *genome);
 
 int main(int argc, char** argv){
   cout << "Starting program" << endl;
-  if(argc != 3){
-    cout << "Usage: ./construct_table <reference genome path> <step size>" << endl;
+  if(argc != 5){
+    cout << "Usage: ./construct_table <reference genome path> <step size> <seed size> <Replace # consecutive N's>"<< endl;
     return 0;
   }
 
-  thread threads[32];
-
-  // Future: use the bwa index.
   // Construct from scratch to compare this with
-  // future versions using the bwa index.
+  // future versions 
   char * file = argv[1];
-  unsigned int step = atoi(argv[2]);
+  uint64_t step = atoi(argv[2]);
+  size_t seed = atoi(argv[3]);
+  uint32_t replace_n = atoi(argv[4]);
+  const size_t table_s = 4ULL<<((seed-1ULL)*2ULL);
+  set_seed_size(seed);
 
-  const size_t table_s = 268435456;
-  size_t seed = 14;
+  // Set up file name
+  stringstream name;
+  name << "seed";
+  name << seed;
+  name << "-";
+  name << step;
 
+  cout << "seed size: " << seed << endl;
+  cout << "Table size in Gb: " << ((sizeof(vector<uint32_t>*)*table_s)>>30) << endl;
 
-  //array<vector<uint32_t> * , table_s> table;
-  //fill(table.begin(), table.end(), new vector<uint32_t>());
-  //vector<uint32_t> * hashtable[table];
-  //map<string, uint32_t> names;
-  vector<uint32_t> ** table = (vector<uint32_t>**)malloc(table_s*sizeof(vector<uint32_t>*));
+  vector<uint32_t> ** table = (vector<uint32_t> **)malloc(sizeof(vector<uint32_t>*)*table_s);
+  if(table == 0){
+    cerr << "Unable to allocate sufficient space" << endl;
+    return 1;
+  }
 
-  unsigned int increment = table_s/32;
-
-  for(int i = 0; i < 32; i++)
-    threads[i] = thread(init_table, i*increment, (i+1)*increment, table);
-
-  for(auto& th: threads) th.join();
+  // Initialize table buckets to 0
+  for(uint32_t i = 0; i < table_s; i++){
+    table[i] = 0;
+  }
 
   cout << "Initialized table" << endl;
 
+  // Prepare to parse reference genome
   string line;
   ifstream genome(file);
-  vector<char> genome_vector;
-  genome_vector.reserve(3500000000);
-
+  vector<vector<char> * > genome_vector;
+  vector<string> genome_names;
   if(genome.is_open()) {
+    uint32_t i = 0;
     while(getline(genome, line)) {
-      if(line.size() == 0)
-        continue;
-      if(line[0] == '>'){
-        cout << line << '\t' << genome_vector.size() << endl;
-        continue;
+
+      // Sometimes contains blank lines in between sections
+      if(line.size() == 0){
+	continue;
       }
 
-      for(int j = 0; j < line.size(); j++) {
-        genome_vector.push_back(toupper(line[j]));
+      // Fasta format: name lines start with a > character
+      if(line[0] == '>'){
+	cout << line << endl;
+	genome_vector.push_back(new vector<char>());
+	genome_names.push_back(line);
+	i = genome_vector.size()-1;
+	continue;
+      }
+
+      // Read all the DNA into a vector for future use
+      uint32_t j = 0;
+      for(; j < line.size(); j++) {
+	genome_vector.at(i)->push_back(toupper(line[j]));
       }
     }
   }
@@ -73,97 +91,137 @@ int main(int argc, char** argv){
     cerr << "Unable to open genome" << endl;
     return 1;
   }
+  genome.close();
 
-  cout << "Read reference genome" << endl;
+  cout << "Reference genome read." << endl;
+  cout << "Changing strings of N's less than " << replace_n << " characters." << endl;
 
-  /*unsigned int genome_size = genome_vector.size();
-  unsigned int step_size = genome_size / 32;
-  unsigned int step_mod = genome_size % 32;
+  string fastafile = name.str() + ".fasta";
+  ofstream fasta(fastafile.c_str(), ofstream::out);
+  for(uint32_t i = 0; i < genome_vector.size(); i++){
+    vector<char> * chromosome = genome_vector.at(i);
+    if(i != 0)
+      fasta << "\n";
+    fasta << genome_names.at(i) << endl;
+    for(uint32_t j = 0; j < chromosome->size(); j++){
 
-  for(int i = 0; i < 32; i++){
-    if(i == 31){
-      threads[i] = thread(fill_table, i*step_size, (i+1)*step_size + step_mod - seed, step, seed, table, &genome_vector);
-    }
-    else{
-      threads[i] = thread(fill_table, i*step_size, (i+1)*step_size, step, seed, table, &genome_vector);
+      // Find N's
+      if(chromosome->at(j) == 'N'){
+	uint32_t k = j;
+
+	// Find length of string. This does not deal with long strings of N's well.
+	while(k < chromosome->size() && chromosome->at(k) == 'N' && k-j != replace_n)
+	  k++;
+
+	// Only change N if it is a spurious string of them
+	if(k < chromosome->size() && k-j < replace_n && chromosome->at(j-1) != 'N'){
+	  for(uint32_t l = j; l < k; l++)
+	    chromosome->at(l) = random_base();
+	}
+      }
+      
+      // Add bases to fasta file, with only 60 bases on a line.
+      if(j != 0 && j % 60 == 0)
+	fasta << "\n";
+      fasta << chromosome->at(j); 
     }
   }
+  fasta.close();
 
-  for(auto& th: threads) th.join();*/
+  cout << "N's changed" << endl;
 
-  unsigned long total_size = 0;
+  uint64_t genome_size = genome_vector.size();
 
-  for(unsigned int i = 0; i < genome_vector.size() - seed; i+=step){
-    if(i%10000000 == 0)
-      cout << i << "/" << genome_vector.size() << endl;
-    stringstream s;
-    for(unsigned int j = 0; j < seed; j++){
-      s<<genome_vector.at(i+j);
-    }
-    string result = s.str();
-    size_t num = result.find("N");
-    if(num < seed)
-      continue;
-    //cout << num << endl;
-    //cout << '\t' << result << endl;
-    uint32_t hash = get_hash(result.c_str());
-    //cout << hash << endl;
-    table[hash]->push_back(i);
-    total_size++;
+  for(uint32_t i = 0; i < genome_size; i++){
+    cout << "Chromosome " << i << "/" << genome_size << " started" << endl;
+    fill_table(step, seed, table, genome_vector.at(i));
+  }
+
+  cout << "Calculating number of locations" << endl;
+
+  uint64_t total_size = 0;
+  for(uint64_t i = 0; i < table_s; i++){
+    if(table[i] != 0)
+      total_size += table[i]->size();
   }
 
   cout << "Completed initial table construction" << endl;
 
+  cout << "initializing hashtable" << endl;
   initialize_hashtable();
+
+  cout << "initializing locations array" << endl;
   initialize_location(total_size);
 
+  cout << "populating hashtable and locations" << endl;
   total_size = 0;
-  for(unsigned int i = 0; i < table_s; i++){
-    set_frequency(i, table[i]->size());
+  for(uint64_t i = 0; i < table_s; i++){
+    uint32_t frequency = table[i] == 0 ? 0 : table[i]->size();
+    set_frequency(i, frequency);
     set_offset(i, total_size);
-    for(unsigned int j = 0; j < table[i]->size(); j++){
+    for(uint64_t j = 0; j < frequency; j++){
       set_location(j+total_size, table[i]->at(j));
-    total_size += table[i]->size();
     }
+    total_size += frequency;
   }
 
   cout << "Completed internal table and list construction." << endl;
+  cout << "Writing table and list to file" << endl;
 
-  write_table_to_file("seed14.hashtable");
-  write_locations_to_file("seed14.locations");
+  string tablename = name.str() + ".hashtable";
+  string locname = name.str() + ".locations";
+  write_table_to_file(tablename.c_str());
+  write_locations_to_file(locname.c_str());
 
+  cout << "Freeing memory" << endl;
   free_memory();
   free(table);
 
   return 0;
 }
 
-void init_table(unsigned int start, unsigned int end, vector<uint32_t> ** table){
+void init_table(uint64_t start, uint64_t end, vector<uint32_t> ** table){
   // No possible collisions, so no locks needed
-  cout << "Thread started" << endl;
-  for(; start < end; start++)
-    table[start] = new vector<uint32_t>();
+  //cout << "Thread started" << endl;
+  for(; start < end; start++){
+    //cout << start << endl;
+    table[start] = 0;
+  }
+  //cout << "Thread finished" << endl;
 }
 
-void fill_table(unsigned int start, unsigned int end, unsigned int step, unsigned int seed, vector<uint32_t> ** table, vector<char> *genome){
-  int s = start;
-  for(; start < end; start += step){
-    if((start - s) % 100000000 == 0 && s!=start)
-      cout << "100 million" << endl;
-    stringstream s;
-    for(unsigned int j = start; j < seed+start; j++){
-      s << genome->at(j);
+void fill_table(uint64_t step, uint64_t seed, vector<uint32_t> ** table, vector<char> *genome){
+  uint64_t index = 0;
+  double e = genome->size();
+
+  for(; index < e-seed; index += step){
+    if((index) % 10000000 == 0)
+      cout << (index)/e << endl;
+    stringstream st;
+
+    for(uint64_t j = index; j < seed+index; j++){
+      st << genome->at(j);
     }
-    string result = s.str();
+    string result = st.str();
+
     size_t num = result.find("N");
     if(num < seed)
       continue;
-    uint32_t hash = get_hash(result.c_str());
-    mtx.lock();
-    table[hash]->push_back(start);
-    mtx.unlock();
+    uint64_t hash = get_hash(result.c_str());
+
+    if(table[hash] == 0)
+      table[hash] = new vector<uint32_t>();
+    table[hash]->push_back(index);
   }
 }
 
-
-
+// G++ gives a warning about this function. It shouldn't.
+char random_base(){
+  uint32_t r = rand() % 4;
+  switch(r){
+    case 0: return 'A';
+    case 1: return 'C';
+    case 2: return 'G';
+    case 3: return 'T';
+  }
+}
