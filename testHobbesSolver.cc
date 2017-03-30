@@ -32,11 +32,18 @@ int main(int argc, const char* argv[]) {
   tablename += ".hashtable";
   string locname = argv[1];
   locname += ".locations";
+  string l2tablename = argv[1];
+  l2tablename += ".l2.hashtable";
+  string l2locname = argv[1];
+  l2locname += ".l2.locations";
 
   read_table_from_file(tablename.c_str());
   cout << "Table read" << endl;
   read_locations_from_file(locname.c_str());
   cout << "Locations read" << endl;
+
+  l2_read_hashtable_from_file(l2tablename.c_str());
+  l2_read_locations_from_file(l2locname.c_str());
 
   fp = strcmp(argv[2], "-")? gzopen(argv[2], "r") : gzdopen(fileno(stdin), "r");
   if (NULL == fp) {

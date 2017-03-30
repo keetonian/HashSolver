@@ -3,14 +3,9 @@
 
 #include "stdint.h"
 #include "stdlib.h"
+#include "hashtable.h"
 
-
-typedef struct{
-  uint32_t frequency;
-  uint32_t offset;
-} info;
-
-static uint64_t l2seed_size = 11;
+static uint64_t l2seed_size = 10;
 static uint64_t l2num_tables = 0;
 static uint64_t l2table_size = (36<<8);
 static info * l2hashtable = 0;
@@ -37,7 +32,7 @@ extern "C" {
   void l2_set_offset(uint32_t index, uint32_t offset);
 
   uint32_t l2_get_location(uint32_t offset);
-  void l2_set_location(uint32_t offset);
+  void l2_set_location(uint32_t offset, uint32_t location);
 
   void l2_write_hashtable_to_file(const char * name);
   void l2_write_locations_to_file(const char * name);

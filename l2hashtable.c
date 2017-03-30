@@ -1,4 +1,5 @@
-
+#include "l2hashtable.h"
+#include "stdio.h"
 
 uint8_t pearsonHash(const char * seed) {
   static const uint8_t T[256] = {
@@ -25,7 +26,7 @@ uint8_t pearsonHash(const char * seed) {
   size_t j;
   uint8_t h=0, index;
 
-  for(i=0; i<11; i++) {
+  for(i=0; i<l2seed_size; i++) {
     index = h^seed[i];
     h = T[index];
   }
@@ -34,7 +35,7 @@ uint8_t pearsonHash(const char * seed) {
 }
 
 void l2_set_num_tables(uint64_t number){
-  l2num_tables = seed;
+  l2num_tables = number;
 }
 
 void l2_init_hashtable(uint64_t num_tables){
@@ -88,12 +89,15 @@ void l2_write_hashtable_to_file(const char * name){
 
   // Write how many tables are in this file
   // Tables are of size 6*6*256 = 9216 buckets
+  printf("Writing number of tables: %zu\n", l2num_tables);
   size_t data = fwrite(&l2num_tables, sizeof(uint64_t), 1, f);
   if(data != 1){
     printf("Not enough room on disk\n");
   }
 
-  data = fwrite(hashtable, sizeof(info), l2num_tables*l2table_size, f);
+  printf("Writing hashtable: total size is %zu\n", l2num_tables*l2table_size);
+  data = fwrite(l2hashtable, sizeof(info), l2num_tables*l2table_size, f);
+  printf("Hashtable written.\n");
   if(data != l2table_size * l2num_tables)
     printf("Not enough room on disk. Elements written: %zu/%zu\n", data, l2table_size * l2num_tables);
   fclose(f);
@@ -103,7 +107,7 @@ void l2_write_locations_to_file(const char * name){
   FILE *f = fopen(name, "wb");
   fwrite(&l2locations_size, sizeof(size_t), 1, f);
 
-  size_t data = fwrite(l2locations, sizeof(uint32_t), l2locations_size);
+  size_t data = fwrite(l2locations, sizeof(uint32_t), l2locations_size, f);
   if(data != l2locations_size)
     printf("Not enough room on disk. Elements written: %zu/%zu\n", data, l2locations_size);
   fclose(f);
@@ -126,7 +130,7 @@ void l2_read_hashtable_from_file(const char * name){
 }
 
 void l2_read_locations_from_file(const char * name){
-  FILE *f = fopen(filename, "rb");
+  FILE *f = fopen(name, "rb");
   size_t size[1];
 
   // Get the size of the list
@@ -136,7 +140,7 @@ void l2_read_locations_from_file(const char * name){
 
   l2_init_locations(size[0]);
 
-  data = fread(locations, sizeof(uint32_t), l2locations_size, f);
+  data = fread(l2locations, sizeof(uint32_t), l2locations_size, f);
   if(data != l2locations_size)
     printf("Error: locations list not read\n");
   fclose(f);

@@ -13,13 +13,13 @@ KmerHash.o: KmerHash.cc KmerHash.h
 RefDB.o: RefDB.cc RefDB.h
 	$(CXX) $(CPPFLAGS) -c $<
 
-hobbesSolver.o: hobbesSolver.cc hobbesSolver.h hashtable.h hashtable.o
+hobbesSolver.o: hobbesSolver.cc hobbesSolver.h hashtable.h hashtable.o l2hashtable.o
 	$(CXX) $(CPPFLAGS) -c $< -o $@ 
 
 basicSolver.o: basicSolver.cc basicSolver.h
 	$(CXX) $(CPPFLAGS) $(INC) -c $< -o $@ 
 
-testHobbesSolver: testHobbesSolver.cc hobbesSolver.o hashtable.o utils.o malloc_wrap.o
+testHobbesSolver: testHobbesSolver.cc hobbesSolver.o hashtable.o l2hashtable.o utils.o malloc_wrap.o
 	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIB)
 
 testBasicSolver: testBasicSolver.cc basicSolver.o hashtable.o utils.o malloc_wrap.o

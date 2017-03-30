@@ -1,4 +1,3 @@
-#include "hashtable.h"
 #include <fstream>
 #include <sstream>
 #include <array>
@@ -8,18 +7,23 @@
 #include <vector>
 #include <stdlib.h>
 
+#include "hashtable.h"
+#include "l2hashtable.h"
+
 using namespace std;
 
 char random_base();
 void init_table(uint64_t start, uint64_t end, vector<uint32_t> ** table);
 void fill_table(uint64_t step, uint64_t seed, vector<uint32_t> ** table, vector<char> *genome, uint64_t offset);
-void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector<vector<char> * > * genome);
+void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector<vector<char> * > * genome, vector<uint32_t> ** l1table);
 uint32_t get_genome_index(uint32_t location, vector<vector<char> * > * genome);
+string reverse_hash(uint64_t hash);
 
 int main(int argc, char** argv){
   cout << "Starting program" << endl;
   if(argc != 6){
     cout << "Usage: ./construct_table <reference genome path> <step size> <seed size> <Replace # consecutive N's> <L2 bucket threshold>"<< endl;
+    cout << "Set <L2 bucket threshold> to 0 if you do not want any L2 hashing" << endl;
     return 0;
   }
 
@@ -36,9 +40,15 @@ int main(int argc, char** argv){
   // Set up file name
   stringstream name;
   name << "seed";
+
   name << seed;
   name << "-";
   name << step;
+  name << "-";
+  name << replace_n;
+  name << "N-";
+  name << bucket_threshold;
+  name << "B";
 
   cout << "seed size: " << seed << endl;
   cout << "Table size in Gb: " << ((sizeof(vector<uint32_t>*)*table_s)>>30) << endl;
@@ -55,6 +65,7 @@ int main(int argc, char** argv){
   }
 
   cout << "Initialized table" << endl;
+  cout << "Reading reference genome" << endl;
 
   // Prepare to parse reference genome
   string line;
@@ -133,7 +144,7 @@ int main(int argc, char** argv){
 
   uint64_t offset = 0;
   for(uint32_t i = 0; i < genome_size; i++){
-    cout << "Chromosome " << i << "/" << genome_size << " started" << endl;
+    cout << "Chromosome " << (i+1) << "/" << genome_size << " started" << endl;
     fill_table(step, seed, table, genome_vector.at(i), offset);
     offset+=genome_vector.at(i)->size();
   }
@@ -143,7 +154,8 @@ int main(int argc, char** argv){
   uint64_t total_size = 0;
   for(uint64_t i = 0; i < table_s; i++){
     if(table[i] != 0)
-      total_size += table[i]->size();
+      if(bucket_threshold == 0 || table[i]->size() < bucket_threshold)
+	total_size += table[i]->size();
   }
 
   cout << "Completed initial table construction" << endl;
@@ -163,9 +175,11 @@ int main(int argc, char** argv){
     set_frequency(i, frequency);
 
     // Save big buckets, keep track of how many there are.
-    if(frequency > bucket_threshold){
+    if(bucket_threshold != 0 && frequency >= bucket_threshold){
       big_buckets++;
+      set_offset(i, buckets.size());
       buckets.push_back(i);
+      continue;
     }
 
     set_offset(i, total_size);
@@ -183,13 +197,24 @@ int main(int argc, char** argv){
   write_table_to_file(tablename.c_str());
   write_locations_to_file(locname.c_str());
 
-  cout << "Freeing intermediate table" << endl;
-  free(table);
+  cout << "Freeing l1 tables" << endl;
+  free_memory();
 
-  //construct_l2_table(big_buckets, &buckets, &genome_vector);
+  if(buckets.size()){
+    cout << "L2 Hashing" << endl;
+    construct_l2_table(big_buckets, &buckets, &genome_vector, table);
+    string l2hash_name = name.str();
+    l2hash_name += ".l2.hashtable";
+    string l2loc_name = name.str();
+    l2loc_name += ".l2.locations";
+    cout << "Writing l2 hash table to file" << endl;
+    l2_write_hashtable_to_file(l2hash_name.c_str());
+    cout << "Writing l2 locations array to file" << endl;
+    l2_write_locations_to_file(l2loc_name.c_str());
+  }
 
   cout << "Freeing hashtable memory" << endl;
-  free_memory();
+  free(table);
 
   return 0;
 }
@@ -235,7 +260,9 @@ void fill_table(uint64_t step, uint64_t seed, vector<uint32_t> ** table, vector<
   }
 }
 
-// G++ gives a warning about this function. It shouldn't.
+/*
+ * Returns a random base
+ * */
 char random_base(){
   uint32_t r = rand() % 4;
   switch(r){
@@ -244,15 +271,18 @@ char random_base(){
     case 2: return 'G';
     case 3: return 'T';
   }
+
+  // Should never reach this, but included here for the compiler
+  return 0;
 }
 
 /*
  * Constructs the L2 tables
  * */
-void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector<vector<char>* > * genome){
+void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector<vector<char>* > * genome, vector<uint32_t> ** l1table){
   cout << "Starting L2 hashing" << endl;
   cout << "Elements in L2 hashing: " << big_buckets << endl;
-  uint32_t l2seed_size = 11;
+  uint32_t l2seed_size = 10;
   uint32_t l1seed_size = 14;
 
   // Repurpose table for 2nd level hashing.
@@ -271,14 +301,13 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   cout << "Calculating hash tables for each seed" << endl;
   // Calculate hash tables for each location of each seed
   for(uint32_t i = 0; i < buckets->size(); i++){
-    if(i%1000){
-      cout << i << "/" << buckets->size() << " completed" << endl;
+    if(i%1000 == 0){
+      cout << (i) << "/" << buckets->size() << endl;
     }
 
     // Get the current seed, frequency, offset
     uint64_t seed = buckets->at(i);
-    uint32_t frequency = get_frequency(seed);
-    uint32_t offset = get_offset(seed);
+    uint32_t frequency = l1table[seed]->size(); 
 
     // Calculations for position in reference genome
     uint32_t index = 0;
@@ -288,7 +317,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
     for(uint32_t j = 0; j < frequency; j++){
 
       // Select a location to use
-      uint32_t location = get_location(offset + j);
+      uint32_t location = l1table[seed]->at(j);
 
       // Calculate reference genome location
       for(; index < genome->size(); index++){
@@ -304,26 +333,37 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 	max += genome->at(index+1)->size();
       }
 
+      // Sanity check: seeds match
+      string l1string;
+      for(uint32_t k = location-min; k < (location-min) + l1seed_size; k++){
+	if(k >= genome->at(index)->size())
+	  cout << "here" << endl;
+	l1string += genome->at(index)->at(k);
+      }
+      if(seed != get_hash(l1string.c_str()))
+	cout << "Seeds don't match: " << reverse_hash(seed) << '\t' << l1string << '\t' << location << endl;
+
       // For each location, populate all 6 I/J combinations
       for(uint32_t I = 0; I < 6; I++){
 	for(uint32_t J = 0; J < 6; J++){
 	  string l2string;
 	  uint32_t start; 
 
-	  if(J < I){ // Seeds before I
+	  if(J < I || (I==3 && I<=J)){ // Seeds before I
 	    // Check boundaries
-	    if(location - min < J * l2seed_size)
+	    uint32_t Joffset = I==3 ? 1 : 0;
+	    if(location - min < (Joffset+I-J) * l2seed_size)
 	      continue;
 
-	    start = (location - min) - (J+1) * l2seed_size;
+	    start = (location - min) - (Joffset+I-J) * l2seed_size;
 	  }
 	  else { // Seeds after I
 	    // Check boundaries
-	    if(location + 14 + J*l2seed_size > max)
+	    if(location-min + l1seed_size + (J-I)*l2seed_size + l2seed_size >= genome->at(index)->size())
 	      continue;
 
 	    // Find the starting location
-	    start = location + l1seed_size + J*l2seed_size;
+	    start = (location-min) + l1seed_size + (J-I)*l2seed_size;
 	  }
 
 	  // Get the seed
@@ -333,17 +373,67 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 
 	  // Get the hash value and bucket
 	  uint8_t hash = pearsonHash(l2string.c_str());
-	  uint32+t bucket = i*9216 + I*6*256 + J*256 + hash;
+	  uint32_t bucket = l2_get_index(i, I, J, hash);
 	  if(table[bucket] == 0)
 	    table[bucket] = new vector<uint32_t>();
 
-	  // TODO Need to check if location already exists in this bucket.
-	  // Fill the bucket
+	  // Fill the bucket. 
 	  table[bucket]->push_back(location);
 	}
       }
 
     }
   }
+
+  // Calculate necessary location array size
+  uint64_t l2_loc_size = 0;
+  for(uint64_t i = 0; i < tsize; i++){
+    if(table[i] != 0)
+      l2_loc_size += table[i]->size();
+  }
+  cout << "Location size: " << l2_loc_size << endl;
+
+  // Initialize l2 tables
+  l2_init_hashtable(big_buckets);
+  l2_init_locations(l2_loc_size);
+
+  uint32_t total_offset = 0;
+  for(uint64_t i = 0; i < tsize; i++){
+    uint32_t frequency = (table[i] == 0) ? 0 : table[i]->size();
+    l2_set_frequency(i, frequency);
+    l2_set_offset(i, total_offset);
+    if(!frequency)
+      continue;
+    uint32_t j = 0;
+    for(auto it = table[i]->begin(); it != table[i]->end(); it++){
+      l2_set_location(j+total_offset, *it);
+      //cout << *it << endl;
+    }
+    total_offset += frequency;
+  }
+
+  cout << "Finished populating l2 tables" << endl;
+
+  // Free l2 table used in this function
+  free(table);
 }
 
+// Reconstructs the string from the hash number
+string reverse_hash(uint64_t hash){
+  string reverse;
+  for(uint32_t i = 0; i < 14; i++){
+    uint8_t c = hash & 0x3;
+    switch(c){
+      case 0x0: reverse = 'A' + reverse;
+		break;
+      case 0x1: reverse = 'C' + reverse;
+		break;
+      case 0x2: reverse = 'G' + reverse;
+		break;
+      case 0x3: reverse = 'T' + reverse;
+		break;
+    }
+    hash = hash >> 2;
+  }
+  return reverse;
+}
