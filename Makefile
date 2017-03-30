@@ -1,15 +1,18 @@
 CXX=g++
 CFLAGS=-std=c++11 -O2 -Wall -Wno-unused-variable -pthread -lpthread
 
-all: build query
+all: build query 
 
-build: construct_table.cpp hashtable.o
+build: construct_table.cpp hashtable.o l2hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^
 
 hashtable.o: hashtable.h hashtable.c
 	gcc -O2 -c $^
 
-query: query_hash.cpp hashtable.o
+l2hashtable.o: l2hashtable.h l2hashtable.c
+	gcc -O2 -c $^
+
+query: query_hash.cpp hashtable.o l2hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^
 
 clean:

@@ -291,18 +291,23 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   // buckets: 256
   // big_buckets: number of these tables for L2
   // Each bucket contains a pointer to a vector where the locations will be stored.
-  size_t tsize = 6 * 6 * 256 * big_buckets;
+  size_t tsize = 6 * 6 * 256;
   vector<uint32_t> ** table = (vector<uint32_t> **)malloc(tsize * sizeof(vector<uint32_t> * ));
+  vector<uint32_t> l2temploc;
+  l2_init_hashtable(big_buckets);
 
-  // Initialize all locations to 0
-  for(uint64_t i = 0; i < tsize; i++)
-    table[i] = 0;
 
   cout << "Calculating hash tables for each seed" << endl;
   // Calculate hash tables for each location of each seed
   for(uint32_t i = 0; i < buckets->size(); i++){
     if(i%1000 == 0){
       cout << (i) << "/" << buckets->size() << endl;
+    }
+    // Initialize all locations to 0
+    for(uint64_t i = 0; i < tsize; i++){
+      if(table[i] != 0)
+	free(table[i]);
+      table[i] = 0;
     }
 
     // Get the current seed, frequency, offset
@@ -373,7 +378,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 
 	  // Get the hash value and bucket
 	  uint8_t hash = pearsonHash(l2string.c_str());
-	  uint32_t bucket = l2_get_index(i, I, J, hash);
+	  uint32_t bucket = l2_get_index(0, I, J, hash);
 	  if(table[bucket] == 0)
 	    table[bucket] = new vector<uint32_t>();
 
@@ -383,33 +388,28 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
       }
 
     }
+
+    uint32_t startindex = l2_get_index(i, 0, 0, 0);
+    for(uint32_t j = 0; j < (36<<8); j++){
+      uint32_t frequency = (table[j] == 0) ? 0 : table[j]->size();
+      l2_set_frequency(j+startindex, frequency);
+      l2_set_offset(j+startindex, l2temploc.size());
+      if(!frequency)
+	continue;
+      for(auto it = table[j]->begin(); it != table[j]->end(); it++){
+	l2temploc.push_back(*it);
+	//cout << *it << endl;
+      }
+    }
   }
 
   // Calculate necessary location array size
-  uint64_t l2_loc_size = 0;
-  for(uint64_t i = 0; i < tsize; i++){
-    if(table[i] != 0)
-      l2_loc_size += table[i]->size();
-  }
-  cout << "Location size: " << l2_loc_size << endl;
+  cout << "Location size: " << l2temploc.size() << endl;
 
   // Initialize l2 tables
-  l2_init_hashtable(big_buckets);
-  l2_init_locations(l2_loc_size);
-
-  uint32_t total_offset = 0;
-  for(uint64_t i = 0; i < tsize; i++){
-    uint32_t frequency = (table[i] == 0) ? 0 : table[i]->size();
-    l2_set_frequency(i, frequency);
-    l2_set_offset(i, total_offset);
-    if(!frequency)
-      continue;
-    uint32_t j = 0;
-    for(auto it = table[i]->begin(); it != table[i]->end(); it++){
-      l2_set_location(j+total_offset, *it);
-      //cout << *it << endl;
-    }
-    total_offset += frequency;
+  l2_init_locations(l2temploc.size());
+  for(uint64_t i = 0; i < l2temploc.size(); i++){
+    l2_set_location(i, l2temploc.at(i));
   }
 
   cout << "Finished populating l2 tables" << endl;
