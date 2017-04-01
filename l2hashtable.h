@@ -31,8 +31,8 @@ extern "C" {
   void l2_set_frequency(uint32_t index, uint32_t frequency);
   void l2_set_offset(uint32_t index, uint32_t offset);
 
-  uint32_t l2_get_location(uint32_t offset);
-  void l2_set_location(uint32_t offset, uint32_t location);
+  uint32_t l2_get_location(uint64_t offset);
+  void l2_set_location(uint64_t offset, uint32_t location);
 
   void l2_write_hashtable_to_file(const char * name);
   void l2_write_locations_to_file(const char * name);

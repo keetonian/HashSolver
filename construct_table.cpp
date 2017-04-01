@@ -17,6 +17,7 @@ void init_table(uint64_t start, uint64_t end, vector<uint32_t> ** table);
 void fill_table(uint64_t step, uint64_t seed, vector<uint32_t> ** table, vector<char> *genome, uint64_t offset);
 void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector<vector<char> * > * genome, vector<uint32_t> ** l1table);
 uint32_t get_genome_index(uint32_t location, vector<vector<char> * > * genome);
+string check_genome(uint32_t location, vector<vector<char> * > * genome);
 string reverse_hash(uint64_t hash);
 
 int main(int argc, char** argv){
@@ -93,7 +94,12 @@ int main(int argc, char** argv){
       // Read all the DNA into a vector for future use
       uint32_t j = 0;
       for(; j < line.size(); j++) {
-	genome_vector.at(i)->push_back(toupper(line[j]));
+	char cc = toupper(line[j]);
+	if(cc != 'A' && cc != 'C' && cc != 'G' && cc != 'T' && cc != 'N'){
+	  cout << "Changing character " << cc << " to N" << endl;
+	  cc = 'N';
+	}
+	genome_vector.at(i)->push_back(cc);
       }
     }
   }
@@ -293,6 +299,11 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   // Each bucket contains a pointer to a vector where the locations will be stored.
   size_t tsize = 6 * 6 * 256;
   vector<uint32_t> ** table = (vector<uint32_t> **)malloc(tsize * sizeof(vector<uint32_t> * ));
+
+  for(uint64_t i = 0; i < tsize; i++){
+    table[i] = 0;
+  }
+
   vector<uint32_t> l2temploc;
   l2_init_hashtable(big_buckets);
 
@@ -304,10 +315,10 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
       cout << (i) << "/" << buckets->size() << endl;
     }
     // Initialize all locations to 0
-    for(uint64_t i = 0; i < tsize; i++){
-      if(table[i] != 0)
-	free(table[i]);
-      table[i] = 0;
+    for(uint64_t ii = 0; ii < tsize; ii++){
+      if(table[ii] != 0)
+	free(table[ii]);
+      table[ii] = 0;
     }
 
     // Get the current seed, frequency, offset
@@ -349,18 +360,22 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 	cout << "Seeds don't match: " << reverse_hash(seed) << '\t' << l1string << '\t' << location << endl;
 
       // For each location, populate all 6 I/J combinations
-      for(uint32_t I = 0; I < 6; I++){
+      uint32_t Ioffset = 0;
+      for(uint32_t I = 0; I < 7; I++){
+	if(I==3){
+	  Ioffset = 1;
+	  continue;
+	}
 	for(uint32_t J = 0; J < 6; J++){
 	  string l2string;
 	  uint32_t start; 
 
-	  if(J < I || (I==3 && I<=J)){ // Seeds before I
+	  if(J < I){ // Seeds before I
 	    // Check boundaries
-	    uint32_t Joffset = I==3 ? 1 : 0;
-	    if(location - min < (Joffset+I-J) * l2seed_size)
+	    if(location - min < (I-J) * l2seed_size)
 	      continue;
 
-	    start = (location - min) - (Joffset+I-J) * l2seed_size;
+	    start = (location - min) - (I-J) * l2seed_size;
 	  }
 	  else { // Seeds after I
 	    // Check boundaries
@@ -378,7 +393,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 
 	  // Get the hash value and bucket
 	  uint8_t hash = pearsonHash(l2string.c_str());
-	  uint32_t bucket = l2_get_index(0, I, J, hash);
+	  uint32_t bucket = l2_get_index(0, I-Ioffset, J, hash);
 	  if(table[bucket] == 0)
 	    table[bucket] = new vector<uint32_t>();
 
@@ -410,6 +425,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   l2_init_locations(l2temploc.size());
   for(uint64_t i = 0; i < l2temploc.size(); i++){
     l2_set_location(i, l2temploc.at(i));
+    //cout << check_genome(l2temploc.at(i), genome) << "\n";
   }
 
   cout << "Finished populating l2 tables" << endl;
@@ -436,4 +452,23 @@ string reverse_hash(uint64_t hash){
     hash = hash >> 2;
   }
   return reverse;
+}
+
+string check_genome(uint32_t location, vector<vector<char> * > * genome){
+  string line;
+  uint32_t min = 0;
+  uint32_t max = genome->at(0)->size();
+  uint32_t index = 0;
+  for(uint32_t i = 0; i < genome->size(); i++){
+    if(location < max){
+      index = i;
+      break;
+    }
+    min += genome->at(i)->size();
+    max += genome->at(i+1)->size();
+  }
+  for(uint32_t i = location-min; i < location+14-min; i++){
+    line += genome->at(index)->at(i);
+  }
+  return line;
 }

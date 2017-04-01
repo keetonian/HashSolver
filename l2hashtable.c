@@ -76,11 +76,11 @@ void l2_set_offset(uint32_t index, uint32_t offset){
   l2hashtable[index].offset = offset;
 }
 
-uint32_t l2_get_location(uint32_t offset){
+uint32_t l2_get_location(uint64_t offset){
   return l2locations[offset];
 }
 
-void l2_set_location(uint32_t offset, uint32_t location){
+void l2_set_location(uint64_t offset, uint32_t location){
   l2locations[offset] = location;
 }
 
