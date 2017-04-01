@@ -38,6 +38,14 @@ void l2_set_num_tables(uint64_t number){
   l2num_tables = number;
 }
 
+uint64_t l2_get_num_tables(){
+  return l2num_tables;
+}
+
+size_t l2_get_locations_size(){
+  return l2locations_size;
+}
+
 void l2_init_hashtable(uint64_t num_tables){
   l2num_tables = num_tables;
   l2hashtable = (info*)malloc(num_tables*l2table_size*sizeof(info));
@@ -48,24 +56,45 @@ void l2_init_locations(uint64_t size){
   l2locations = (uint32_t*)malloc(l2locations_size * sizeof(uint32_t));
 }
 
+void l2_init_overflow(uint64_t size){
+  l2overflow_size = size;
+  if(!size)
+    return;
+  l2overflow_values = (uint32_t*)malloc(size * sizeof(uint32_t));
+}
+
 uint32_t l2_get_index(uint32_t offset, uint32_t I, uint32_t J, uint8_t hash){
   return ((I*6)<<8) + ((J)<<8) + ((offset * 36)<<8) + hash;
+}
+
+uint64_t l2_get_overflow(uint32_t index){
+  uint64_t overflow = 0;
+  for(uint32_t i = 0; i < l2overflow_size; i++){
+    if(index > l2overflow_values[i])
+      overflow += L2_OVERFLOW;
+  }
+  return overflow;
+}
+
+void l2_set_overflow(uint32_t i, uint32_t index){
+  l2overflow_values[i] = index;
 }
 
 uint32_t l2_get_frequency(uint32_t offset, uint32_t I, uint32_t J, uint8_t hash){
   return l2hashtable[l2_get_index(offset, I, J, hash)].frequency;
 }
 
-uint32_t l2_get_offset(uint32_t offset, uint32_t I, uint32_t J, uint8_t hash){
-  return l2hashtable[l2_get_index(offset, I, J, hash)].offset;
+uint64_t l2_get_offset(uint32_t offset, uint32_t I, uint32_t J, uint8_t hash){
+  uint32_t index = l2_get_index(offset, I, J, hash);
+  return l2hashtable[index].offset + l2_get_overflow(index);
 }
 
 uint32_t l2_get_frequency2(uint32_t index){
   return l2hashtable[index].frequency;
 }
 
-uint32_t l2_get_offset2(uint32_t index){
-  return l2hashtable[index].offset;
+uint64_t l2_get_offset2(uint32_t index){
+  return l2hashtable[index].offset + l2_get_overflow(index);
 }
 
 void l2_set_frequency(uint32_t index, uint32_t frequency){
@@ -113,6 +142,16 @@ void l2_write_locations_to_file(const char * name){
   fclose(f);
 }
 
+void l2_write_overflow_to_file(const char * name){
+  FILE *f = fopen(name, "wb");
+  fwrite(&l2overflow_size, sizeof(size_t), 1, f);
+
+  size_t data = fwrite(l2overflow_values, sizeof(uint32_t), l2overflow_size, f);
+  if(data != l2overflow_size)
+    printf("Overflow table not written to disk\n");
+  fclose(f);
+}
+
 void l2_read_hashtable_from_file(const char * name){
   FILE *f = fopen(name, "rb");
   uint64_t size[1];
@@ -146,9 +185,29 @@ void l2_read_locations_from_file(const char * name){
   fclose(f);
 }
 
+void l2_read_overflow_from_file(const char * name){
+  FILE *f = fopen(name, "rb");
+  size_t size[1];
+
+  // Get overflow size
+  size_t data = fread(size, sizeof(size_t), 1, f);
+  if(data != 1)
+    printf("Error: unable to read overflow size\n");
+
+  //printf("Overflow: %zu\n", size[0]);
+  l2_init_overflow(size[0]);
+
+  data = fread(l2overflow_values, sizeof(uint32_t), l2overflow_size, f);
+  if(data != l2overflow_size)
+    printf("Error: overflow list not read\n");
+  fclose(f);
+}
+
 void l2_free_memory(){
   if(l2locations != 0)
     free(l2locations);
   if(l2hashtable != 0)
     free(l2hashtable);
+  if(l2overflow_values != 0)
+    free(l2overflow_values);
 }

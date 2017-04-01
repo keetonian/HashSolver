@@ -29,6 +29,8 @@ int main(int argc, char** argv){
   cout << "read files" << endl;
   if(threshold != 0){
     cout << "Reading l2 files" << endl;
+    string o2 = name + ".l2.overflow";
+    l2_read_overflow_from_file(o2.c_str());
     l2_read_hashtable_from_file(h2.c_str());
     l2_read_locations_from_file(l2.c_str());
     cout << "Read l2 files" << endl;
