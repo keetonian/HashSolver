@@ -84,6 +84,8 @@ int main(int argc, char** argv){
 	cout << "Problem with offsets" << endl;
       }
 
+      offset_e += l2_get_frequency2(end);
+
       for(uint64_t j = offset_s; j < offset_e; j++){
 	loc.insert(l2_get_location(j));
       }

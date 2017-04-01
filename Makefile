@@ -24,6 +24,9 @@ check: check_hash.cpp hashtable.o l2hashtable.o
 print_seed: seed_finder.cpp hashtable.o l2hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^
 
+frequencies: l2_frequencies.cpp l2hashtable.o
+	$(CXX) $(CFLAGS) -o $@ $^
+
 clean:
 	rm build hashtable.o query
 
