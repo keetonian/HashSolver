@@ -61,7 +61,7 @@ int main(int argc, char** argv){
   }
 
   // Initialize table buckets to 0
-  for(uint32_t i = 0; i < table_s; i++){
+  for(uint64_t i = 0; i < table_s; i++){
     table[i] = 0;
   }
 

@@ -64,9 +64,9 @@ int main(int argc, char** argv){
   //for(uint32_t i = 0; i < 1000000000; i++)
     //cout << get_seed(l2_get_location(i), &genome) << endl;
 
-  for(uint32_t i = 0; i < table_size; i++){
+  for(uint32_t i = 0; i < get_table_size(); i++){
     if(i % 10000000 == 0)
-      cout << i << "/" << table_size << " verified" << endl;
+      cout << i << "/" << get_table_size() << " verified" << endl;
     // Go over every element in the table
     if(threshold != 0 && get_frequency(i) >= threshold){
       set<uint32_t> loc;
@@ -123,7 +123,7 @@ int main(int argc, char** argv){
 // Reconstructs the string from the hash number
 string reverse_hash(uint64_t hash){
   string reverse;
-  for(uint32_t i = 0; i < 14; i++){
+  for(uint32_t i = 0; i < get_seed_size(); i++){
     uint8_t c = hash & 0x3;
     switch(c){
       case 0x0: reverse = 'A' + reverse;
@@ -142,7 +142,7 @@ string reverse_hash(uint64_t hash){
 
 string get_seed(uint32_t location, vector<char> * genome){
   string seed;
-  for(uint32_t i = 0; i < 14; i++){
+  for(uint32_t i = 0; i < get_seed_size(); i++){
     seed += genome->at(location+i);
   }
 

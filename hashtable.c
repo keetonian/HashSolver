@@ -15,6 +15,14 @@ void set_seed_size(uint64_t seed){
   table_size = 4ULL << (2*(seed-1));
 }
 
+uint64_t get_seed_size(){
+  return seed_size;
+}
+
+uint64_t get_table_size(){
+  return table_size;
+}
+
 uint32_t get_frequency(uint64_t hash){
   return hashtable[hash].frequency;
 }

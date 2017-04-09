@@ -33,6 +33,8 @@ extern "C" {
   uint64_t get_hash(const char * seed);
 
   void set_seed_size(uint64_t seed);
+  uint64_t get_seed_size();
+  uint64_t get_table_size();
 
   uint32_t get_frequency(uint64_t hash);
   uint32_t get_offset(uint64_t hash);
