@@ -61,6 +61,26 @@ void Genome::read_genome(const char* filename, int options){
     exit(0);
   }
   file.close();
+  // Frequency counting code.
+  /*for(uint32_t i = 0; i < genome_vector.at(0)->size()-100; i++){
+    //std::cout << genome_vector.at(0)->at(i);
+    if(genome_vector.at(0)->at(i) == 'N')
+      continue;
+    int a = 0;
+    int c = 0;
+    int g = 0; 
+    int t = 0;
+    for(uint32_t j = i; j < i+100; j++){
+      switch(genome_vector.at(0)->at(j)){
+	case 'A': a++; break;
+	case 'C': c++; break;
+	case 'G': g++; break;
+	case 'T': t++; break;
+	default: break;
+      }
+    }
+    std::cout << a << '\t' << c << '\t' << g << '\t' << t << std::endl;
+  }*/
 }
 
 int Genome::error_check(){

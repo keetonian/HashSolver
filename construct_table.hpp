@@ -57,12 +57,12 @@ class L1Constructor {
       if(num < seed)
 	continue;
       uint64_t hash = get_hash(result.c_str());
-      my_mutex[hash/1000]->lock();
+      my_mutex[hash/100]->lock();
       if(my_table[hash] == 0){
 	my_table[hash] = new std::vector<uint32_t>();
       }
       my_table[hash]->push_back(i+my_offset);
-      my_mutex[hash/1000]->unlock();
+      my_mutex[hash/100]->unlock();
     }
   }
 

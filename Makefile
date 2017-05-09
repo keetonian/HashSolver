@@ -37,5 +37,5 @@ clean:
 	rm build hashtable.o query genome.o l2hashtable.o
 
 run:
-	./build -g ../human_g1k_v37_hs37d5.fasta -s 14 -c 2
+	./build -g /tmp/GRCh38_full_analysis_set_plus_decoy_hla.fa -s 14 -c 2
 

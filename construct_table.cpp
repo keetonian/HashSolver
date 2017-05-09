@@ -37,17 +37,26 @@ int main(int argc, char** argv){
   cout << "Making mutexes" << endl;
   cout << table_s/1000 << endl;
   mutex **mtxs;
-  mtxs = (mutex**)malloc(sizeof(mutex*) * table_s/1000);
-  for(uint32_t i = 0; i < table_s/1000; i++){
+  mtxs = (mutex**)malloc(sizeof(mutex*) * table_s/100 + 1);
+  for(uint32_t i = 0; i < 1+table_s/100; i++){
     mutex *m = new mutex();
     mtxs[i] = m;
   }
   cout << "Done" << endl;
 
   // Initialize table buckets 
-  if(seed <= 14)
-    for(uint64_t i = 0; i < table_s; i++)
+  if(seed <= 14){
+    for(uint64_t i = 0; i < table_s; i++){
       table[i] = new vector<uint32_t>(0);
+      if(i < 50 || i+50 > table_s){
+	if(i == 1 || i == table_s-1){
+	  table[i]->reserve(100000);
+	}
+	else
+	  table[i]->reserve(400);
+      }
+    }
+  }
   else
     for(uint64_t i = 0; i < table_s; i++)
       table[i] = 0;
