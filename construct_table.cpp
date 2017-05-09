@@ -29,16 +29,25 @@ int main(int argc, char** argv){
   // Set up the table
   cout << "seed size: " << seed << endl;
   cout << "Table size in Gb: " << ((sizeof(vector<uint32_t>*)*table_s)>>30) << endl;
-  tbb::concurrent_vector<uint32_t> ** table = (tbb::concurrent_vector<uint32_t> **)malloc(sizeof(tbb::concurrent_vector<uint32_t>*)*table_s);
+  vector<uint32_t> ** table = (vector<uint32_t> **)malloc(sizeof(vector<uint32_t>*)*table_s);
   if(table == 0){
     cerr << "Unable to allocate sufficient space" << endl;
     return 1;
   }
+  cout << "Making mutexes" << endl;
+  cout << table_s/1000 << endl;
+  mutex **mtxs;
+  mtxs = (mutex**)malloc(sizeof(mutex*) * table_s/1000);
+  for(uint32_t i = 0; i < table_s/1000; i++){
+    mutex *m = new mutex();
+    mtxs[i] = m;
+  }
+  cout << "Done" << endl;
 
   // Initialize table buckets 
   if(seed <= 14)
     for(uint64_t i = 0; i < table_s; i++)
-      table[i] = new tbb::concurrent_vector<uint32_t>(0);
+      table[i] = new vector<uint32_t>(0);
   else
     for(uint64_t i = 0; i < table_s; i++)
       table[i] = 0;
@@ -51,7 +60,7 @@ int main(int argc, char** argv){
   cout << "Constructing table" << endl;
   for(uint32_t i = 0; i < genome_size; i++){
     cout << "Chromosome " << (i+1) << "/" << genome_size << " started" << endl;
-    fill_table(seed, table, genome_vector.at(i), offset);
+    fill_table(seed, table, genome_vector.at(i), offset, mtxs);
     offset+=genome_vector.at(i)->size();
   }
 
@@ -175,9 +184,9 @@ void init_table(uint64_t start, uint64_t end, vector<uint32_t> ** table){
 /*
  * Populates the tables with information from a section of the parsed reference.
  * */
-void fill_table(uint64_t seed, tbb::concurrent_vector<uint32_t> ** table, vector<char> *genome, uint64_t offset){
+void fill_table(uint64_t seed, vector<uint32_t> ** table, vector<char> *genome, uint64_t offset, mutex ** mtxs){
 #if defined (USE_MULTITHREADING)
-  tbb::parallel_for(tbb::blocked_range<size_t>(0, genome->size()-seed), L1Constructor(seed, table, genome, offset));
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, genome->size()-seed), L1Constructor(seed, table, genome, offset, mtxs));
 #else
   uint64_t index = 0;
   double e = genome->size();
@@ -199,7 +208,7 @@ void fill_table(uint64_t seed, tbb::concurrent_vector<uint32_t> ** table, vector
 
     if(table[hash] == 0){
       mtx.lock();
-      table[hash] = new tbb::concurrent_vector<uint32_t>();
+      table[hash] = new vector<uint32_t>();
       mtx.unlock();
     }
     table[hash]->push_back(index+offset);
@@ -211,7 +220,7 @@ void fill_table(uint64_t seed, tbb::concurrent_vector<uint32_t> ** table, vector
 /*
  * Constructs the L2 tables
  * */
-void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector<vector<char>* > * genome, tbb::concurrent_vector<uint32_t> ** l1table){
+void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector<vector<char>* > * genome, vector<uint32_t> ** l1table){
   cout << "Starting L2 hashing" << endl;
   cout << "Elements in L2 hashing: " << big_buckets << endl;
   uint32_t l2seed_size = 10;

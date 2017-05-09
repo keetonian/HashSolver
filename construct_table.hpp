@@ -30,8 +30,8 @@ std::mutex mtx;
 
 
 void init_table(uint64_t start, uint64_t end, std::vector<uint32_t> ** table);
-void fill_table(uint64_t seed, tbb::concurrent_vector<uint32_t> ** table, std::vector<char> *genome, uint64_t offset);
-void construct_l2_table(uint32_t big_buckets, std::vector<uint64_t> * buckets, std::vector<std::vector<char> * > * genome, tbb::concurrent_vector<uint32_t> ** l1table);
+void fill_table(uint64_t seed, std::vector<uint32_t> ** table, std::vector<char> *genome, uint64_t offset, std::mutex ** mtxs);
+void construct_l2_table(uint32_t big_buckets, std::vector<uint64_t> * buckets, std::vector<std::vector<char> * > * genome, std::vector<uint32_t> ** l1table);
 uint32_t get_genome_index(uint32_t location, std::vector<std::vector<char> * > * genome);
 std::string check_genome(uint32_t location, std::vector<std::vector<char> * > * genome);
 std::string reverse_hash(uint64_t hash);
@@ -40,9 +40,10 @@ void create_name();
 
 class L1Constructor {
   uint64_t my_seed;
-  tbb::concurrent_vector<uint32_t> ** my_table;
+  std::vector<uint32_t> ** my_table;
   std::vector<char> * const my_genome;
   uint64_t my_offset;
+  std::mutex ** my_mutex;
 
   public:
   void operator()( const tbb::blocked_range<size_t> & r) const {
@@ -56,17 +57,17 @@ class L1Constructor {
       if(num < seed)
 	continue;
       uint64_t hash = get_hash(result.c_str());
+      my_mutex[hash/1000]->lock();
       if(my_table[hash] == 0){
-	mtx.lock();
-	my_table[hash] = new tbb::concurrent_vector<uint32_t>();
-	mtx.unlock();
+	my_table[hash] = new std::vector<uint32_t>();
       }
       my_table[hash]->push_back(i+my_offset);
+      my_mutex[hash/1000]->unlock();
     }
   }
 
-  L1Constructor(uint64_t seed, tbb::concurrent_vector<uint32_t> ** table, std::vector<char> * const genome, uint64_t offset):
-    my_seed(seed), my_table(table), my_genome(genome), my_offset(offset) {}
+  L1Constructor(uint64_t seed, std::vector<uint32_t> ** table, std::vector<char> * const genome, uint64_t offset, std::mutex ** const mtxs):
+    my_seed(seed), my_table(table), my_genome(genome), my_offset(offset), my_mutex(mtxs){}
 
 };
 
