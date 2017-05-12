@@ -22,6 +22,9 @@ int main(int argc, char** argv){
     exit(0);
   }
 
+  //TODO: update this to be more automatic
+  //tbb::task_scheduler_init init(4);
+
   const size_t table_s = 4ULL<<((seed-1ULL)*2ULL);
   set_seed_size(seed);
   create_name();
@@ -34,15 +37,18 @@ int main(int argc, char** argv){
     cerr << "Unable to allocate sufficient space" << endl;
     return 1;
   }
-  cout << "Making mutexes" << endl;
-  cout << table_s/1000 << endl;
+
   mutex **mtxs;
+#if defined (USE_MULTITHREADING)
+  //cout << "Making mutexes" << endl;
+  //cout << table_s/100 << endl;
   mtxs = (mutex**)malloc(sizeof(mutex*) * table_s/100 + 1);
   for(uint32_t i = 0; i < 1+table_s/100; i++){
     mutex *m = new mutex();
     mtxs[i] = m;
   }
-  cout << "Done" << endl;
+  //cout << "Done" << endl;
+#endif
 
   // Initialize table buckets 
   if(seed <= 14){
@@ -57,9 +63,11 @@ int main(int argc, char** argv){
       }
     }
   }
-  else
-    for(uint64_t i = 0; i < table_s; i++)
+  else{
+    for(uint64_t i = 0; i < table_s; i++){
       table[i] = 0;
+    }
+  }
 
   // Load the reference genome
   initialize_genome();
@@ -135,6 +143,10 @@ int main(int argc, char** argv){
     l2_write_hashtable_to_file(l2hash_name.c_str());
     cout << "Writing l2 locations array to file" << endl;
     l2_write_locations_to_file(l2loc_name.c_str());
+    string l2of_name = name;
+    l2of_name += ".overflow";
+    cout << "Writing l2 overflow table to file" << endl;
+    l2_write_overflow_to_file(l2of_name.c_str());
   }
 
   cout << "Freeing hashtable memory" << endl;

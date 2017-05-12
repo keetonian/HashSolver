@@ -22,7 +22,7 @@ void Genome::read_genome(const char* filename, int options){
   std::ifstream file(filename);
   std::string line;
   if(file.is_open()){
-    uint32_t i = 0;
+    int i = -1;
     while(getline(file, line)) {
       if(line.size() == 0)
 	continue;

@@ -39,3 +39,5 @@ clean:
 run:
 	./build -g /tmp/GRCh38_full_analysis_set_plus_decoy_hla.fa -s 14 -c 2
 
+runall:
+	./build -g /tmp/GRCh38_full_analysis_set_plus_decoy_hla.fa -s 14 -c 0
