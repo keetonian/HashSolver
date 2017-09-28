@@ -7,12 +7,16 @@ LIB=-ltbb -lpthread -pthread -lrt
 INC=./inc
 SRC=./src
 OBJ=./build
+TST=./tests
+BIN=./bin
+TEST_CPP_FILES=$(TST)/genome_test.cpp $(TST)/hashtable_test.cpp $(TST)/main_test.cpp
+OBJECTS= $(OBJ)/genome.o $(OBJ)/hashtable.o
 
-EXE= L1BaselineConstructor query check print_seed #testHobbesSolver testBasicSolver
+EXE= $(BIN)/L1BaselineConstructor $(BIN)/L1Query $(BIN)/L1Check $(BIN)/L1PrintSeed $(TST)/mapper_tests #testHobbesSolver testBasicSolver
 
 all: $(EXE)
 
-L1BaselineConstructor: $(SRC)/construct_table.cpp $(OBJ)/hashtable.o $(OBJ)/genome.o
+$(BIN)/L1BaselineConstructor: $(SRC)/construct_table.cpp $(OBJECTS)
 	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -L$(TBB) -I $(LIBRARIES)/tbb/include -I $(INC) $(LIB)
 
 $(OBJ)/hashtable.o: $(SRC)/hashtable.cpp
@@ -23,17 +27,23 @@ $(OBJ)/genome.o: $(SRC)/genome.cpp
 	$(CXX) $(CFLAGS) $(DFLAGS) -c $^ -I $(INC)
 	mv genome.o $(OBJ)/
 
-query: $(SRC)/query_hash.cpp $(OBJ)/hashtable.o
+$(BIN)/L1Query: $(SRC)/query_hash.cpp $(OBJ)/hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^ -I $(INC)
 
-check: $(SRC)/check_hash.cpp $(OBJ)/hashtable.o
+$(BIN)/L1Check: $(SRC)/check_hash.cpp $(OBJ)/hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^ -I $(INC)
 
-print_seed: $(SRC)/seed_finder.cpp $(OBJ)/hashtable.o
+$(BIN)/L1PrintSeed: $(SRC)/seed_finder.cpp $(OBJ)/hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^ -I $(INC)
+
+$(TST)/mapper_tests: $(TEST_CPP_FILES)
+	$(CXX) -std=c++11 -I $(INC) $(OBJECTS) $^ -o $@ -lgtest -lpthread -g
 
 clean:
 	rm $(EXE) $(OBJ)/*.o
+
+test:
+	sh $(TST)/run_tests.sh
 
 run:
 	./build -g /tmp/DNA/GRCh38_full_analysis_set_plus_decoy_hla.fa -s 14 -c 2

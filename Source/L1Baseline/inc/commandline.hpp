@@ -5,7 +5,6 @@ using namespace std;
 extern char* file;
 extern size_t seed_size;
 extern uint32_t replace_n;
-extern uint32_t l2thresh;
 
 void print_options(){
   std::cout << "Usage: " << std::endl;
@@ -16,8 +15,6 @@ void print_options(){
   std::cout << "-s  --seedsize\tSpecify seed size." << std::endl;
   std::cout << "\t\t  Sizes between 6 and 16 are preferred." << std::endl;
   std::cout << "-N  --replaceN\tReplace consecutive N's of specified length with random chars." << std::endl;
-  std::cout << "-l  --l2thresh\tL2 bucket threshold." << std::endl;
-  std::cout << "\t\t  0: Don't use L2 hashing"<< std::endl;
   std::cout << "\t\t  Recommended to use sizes greater than 1023." << std::endl;
   std::cout << "-f  --hash\tUse specified hash function." << std::endl;
   std::cout << "\t\t  Options:" << std::endl;
@@ -48,7 +45,6 @@ int parseCommands(int argc, char** argv){
     {"contigs",	    required_argument,  0,  'c'},
     {"seedsize",    required_argument,  0,  's'},
     {"replaceN",    required_argument,  0,  'N'},
-    {"l2thresh",    required_argument,	0,  'l'},
     {"hash",	    required_argument,	0,  'f'},
     {"write_out",   required_argument,	0,  'w'},
     {"help",	    no_argument,	0,  'h'},
@@ -72,9 +68,6 @@ int parseCommands(int argc, char** argv){
 	break;
       case 'N':
 	replace_n = atoi(optarg);
-	break;
-      case 'l':
-	l2_threshold= atoi(optarg);
 	break;
       case 'w':
 	write_genome_to_file = false;
