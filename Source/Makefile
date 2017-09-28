@@ -1,9 +1,10 @@
-FOLDERS=lib L1Baseline L2Baseline
+FOLDERS=L1Baseline L2Baseline
 
 all: 
 	for FOLDER in $(FOLDERS) ; do \
 	  cd $$FOLDER ; make ; cd .. ; \
-	done
+	done ;\
+	cd lib; make; cd .. ;
 
 clean:
 	for FOLDER in $(FOLDERS) ; do \
