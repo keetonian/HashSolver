@@ -1,4 +1,4 @@
-== Baseline Hash Implementation ==
+## Baseline Hash Implementation 
 
 Converts bases into hash keys, where each base is 2 bits.
 
