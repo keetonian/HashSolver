@@ -7,12 +7,11 @@
 #include <mutex>
 #include <tbb/concurrent_vector.h>
 
-#include "hashtable.hpp"
-#include "l2hashtable.hpp"
+#include "l1_hashtable.hpp"
+#include "l2_hashtable.hpp"
 #include "genome.hpp"
-#include "construct_table.hpp"
-#include "commandline.hpp"
-#include "signal.h"
+#include "l2_construct_table.hpp"
+#include "l2_commandline.hpp"
 
 using namespace std;
 
@@ -29,7 +28,7 @@ int main(int argc, char** argv){
   hashtable = Hashtable(seed);
   l2hashtable = L2Hashtable(l2_threshold);
   const size_t table_size = hashtable.get_table_size();
-  create_name();
+  create_name(hashtable.get_name(), l2hashtable.get_name());
 
   // Set up the table
   cout << "seed size: " << seed << endl;
@@ -150,17 +149,15 @@ int main(int argc, char** argv){
   return 0;
 }
 
-void create_name(){
+void create_name(string l1_hashtable_name, string l2_hashtable_name){
   // Set up file name
   stringstream namestream;
-  namestream << directory << "/L2Baseline-";
+  namestream << directory << "/L1" << l1_hashtable_name << "-L2" << l2_hashtable_name << "-";
 
-  namestream << seed;
-  namestream << "S-";
-  namestream << replace_n;
-  namestream << "N-";
-  namestream << l2_threshold;
-  namestream << "T";
+  namestream << seed << "S-";
+  namestream << replace_n << "N-";
+  namestream << contigs << "C-";
+  namestream << l2_threshold << "T";
   name = namestream.str();
 }
 

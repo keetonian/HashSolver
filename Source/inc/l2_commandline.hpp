@@ -1,3 +1,6 @@
+#ifndef L2_COMMANDLINE_H_
+#define L2_COMMANDLINE_H_
+
 #include <iostream>
 #include <getopt.h>
 
@@ -6,7 +9,9 @@ extern char* genome_file;
 extern char* directory;
 extern size_t seed_size;
 extern uint32_t replace_n;
+std::string version = "1.0";
 extern uint32_t l2thresh;
+std::string default_directory = ".";
 
 void print_options(){
   std::cout << "Usage: " << std::endl;
@@ -60,9 +65,9 @@ int parseCommands(int argc, char** argv){
   };
 
   // Write to the current directory unless otherwise directed.
-  directory = ".";
+  directory = (char*)default_directory.c_str();
 
-  while( (c = getopt_long(argc, argv, "g:c:s:N:l:f:vh", longOptions, &index)) != -1){
+  while( (c = getopt_long(argc, argv, "g:d:c:s:N:l:f:vh", longOptions, &index)) != -1){
     switch(c)
     {
       case 'g':
@@ -92,7 +97,7 @@ int parseCommands(int argc, char** argv){
 	print_options();
 	exit(0);
       case 'v':
-	std::cout << "Version 1.0" << std::endl;
+	std::cout << "Version " << version << std::endl;
 	exit(0);
     }
   }
@@ -100,3 +105,5 @@ int parseCommands(int argc, char** argv){
   return 0;
 
 }
+
+#endif //L2_COMMANDLINE_H_

@@ -1,12 +1,12 @@
-#ifndef CONSTRUCT_TABLE_H_
-#define CONSTRUCT_TABLE_H_
+#ifndef L2_CONSTRUCT_TABLE_H_
+#define L2_CONSTRUCT_TABLE_H_
 
 #include <string>
 #include <vector>
 #include "stdint.h"
 #include "genome.hpp"
-#include "hashtable.hpp"
-#include "l2hashtable.hpp"
+#include "l1_hashtable.hpp"
+#include "l2_hashtable.hpp"
 #include "tbb/tbb.h"
 
 #define PLACE1(src, dest) ((src) | dest)
@@ -40,7 +40,7 @@ uint32_t get_genome_index(uint32_t location, std::vector<std::vector<char> * > *
 std::string check_genome(uint32_t location, std::vector<std::vector<char> * > * genome);
 std::string reverse_hash(uint64_t hash);
 void initialize_genome();
-void create_name();
+void create_name(std::string l1_hashtable_name, std::string l2_hashtable_name);
 
 class L1Constructor {
   uint64_t my_seed;
@@ -75,4 +75,4 @@ class L1Constructor {
 
 };
 
-#endif //CONSTRUCT_TABLE_H_
+#endif //L2_CONSTRUCT_TABLE_H_

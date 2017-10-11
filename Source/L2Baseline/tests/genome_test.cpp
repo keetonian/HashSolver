@@ -19,19 +19,19 @@ TEST(genome_test, stores_genome) {
   genome.write_genome(genome_output_file.c_str(), 0);
   Genome written_genome = Genome(genome_output_file.c_str());
   EXPECT_EQ(genome.get_genome()->size(), written_genome.get_genome()->size());
-  for(int i = 0; i < genome.get_genome()->size(); i++) {
+  for(uint32_t i = 0; i < genome.get_genome()->size(); i++) {
     EXPECT_EQ(genome.get_genome()->at(i)->size(), written_genome.get_genome()->at(i)->size());
-    for(int j = 0; j < genome.get_genome()->at(i)->size(); j++) {
+    for(uint32_t j = 0; j < genome.get_genome()->at(i)->size(); j++) {
       EXPECT_EQ(genome.get_genome()->at(i)->at(j), written_genome.get_genome()->at(i)->at(j));
     }
   }
 }
 
-bool removedConsecutiveNs(std::vector<std::vector<char> *> * chromosomes, int number_consecutive) {
-  for(int i = 0; i < chromosomes->size(); i++) {
+bool removedConsecutiveNs(std::vector<std::vector<char> *> * chromosomes, uint32_t number_consecutive) {
+  for(uint32_t i = 0; i < chromosomes->size(); i++) {
     std::vector<char>* chromosome = chromosomes->at(i);
-    int counter = 0;
-    for(int j = 0; j < chromosome->size(); j++) {
+    uint32_t counter = 0;
+    for(uint32_t j = 0; j < chromosome->size(); j++) {
       if (chromosome->at(j) == 'N') {
 	counter++;
       }
@@ -56,7 +56,7 @@ bool removedConsecutiveNs(std::vector<std::vector<char> *> * chromosomes, int nu
 
 TEST(genome_test, remove_entries_of_N) {
   Genome genome = Genome(test_genome_file_location.c_str());
-  for(int i = 0; i < 10; i++) {
+  for(uint32_t i = 0; i < 10; i++) {
     genome.change_all_N(i);
     EXPECT_TRUE(removedConsecutiveNs(genome.get_genome(), i));
   }

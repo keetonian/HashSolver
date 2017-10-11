@@ -1,5 +1,5 @@
 all:
-	cd Source && make && cd ..; \
+	cd Source && make && cd lib && make && cd ../..; \
 	cd bin; \
 	sh ./link_binaries.sh; \
 	cd ..;

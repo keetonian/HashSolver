@@ -1,0 +1,9 @@
+[submodule "Source/lib/bwa"]
+	path = Source/lib/bwa
+	url = https://github.com/lh3/bwa
+[submodule "Source/lib/seq-align"]
+	path = Source/lib/seq-align
+	url = https://github.com/noporpoise/seq-align
+[submodule "Source/lib/Shifted-Hamming-Distance"]
+	path = Source/lib/Shifted-Hamming-Distance
+	url = https://github.com/CMU-SAFARI/Shifted-Hamming-Distance
