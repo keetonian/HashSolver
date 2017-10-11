@@ -2,7 +2,7 @@ CXX=g++
 CFLAGS=-std=c++14 -O2 -Wall -g
 DFLAGS=-DUSE_DEBUGGING_OUTPUT -DUSE_MULTITHREADING
 LIBRARIES=./lib
-TBB=$(LIBRARIES)/tbb/build/linux_intel64_gcc_cc5.4.0_libc2.23_kernel4.4.0_release
+TBB=$(LIBRARIES)/tbb/build/linux_intel64_gcc_cc6.3.0_libc2.24_kernel4.10.0_release
 LIB=-ltbb -lpthread -pthread -lrt
 INC=./inc
 SRC=./src
