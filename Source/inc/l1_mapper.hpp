@@ -21,6 +21,7 @@ uint32_t number_of_seeds = 1;
 uint32_t error_threshold;
 uint32_t limit;
 uint32_t group;
+uint64_t * genome;
 
 SeedSolver * solver;
 Hashtable hashtable;
@@ -29,8 +30,13 @@ void get_seeds(ReadInformation * reads, uint32_t number_of_reads);
 
 void get_locations(ReadInformation * reads, uint32_t number_of_reads);
 
-
 void free_read_memory(ReadInformation * reads, uint32_t number_of_reads);
+
+void filter_reads(ReadInformation * reads, uint32_t number_of_reads);
+
+void finalize_read_locations(ReadInformation * reads, uint32_t number_of_reads);
+
+void read_genome();
 
 
 #endif //L1_MAPPER_H_

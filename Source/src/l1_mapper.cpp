@@ -30,6 +30,10 @@ int main(int argc, char** argv) {
   // Load hash table
   hashtable.read_from_file(hashtable_filename);
 
+  // Load genome
+  read_genome();
+  cout << "genome read" << endl;
+
   // Select Solver
   if (seed_selection_algorithm == 0x1) {
     solver = new BasicSolver();
@@ -86,6 +90,7 @@ int main(int argc, char** argv) {
       i++;
     } while(i < group && kseq_read(ks) >= 0);
 
+    // What about doing it all backwards?
     // seed selection
     get_seeds(reads, i);
 
@@ -93,10 +98,10 @@ int main(int argc, char** argv) {
     get_locations(reads, i);
 
     // filtering
-    //filter_reads(reads, genome, i);
+    filter_reads(reads, i);
 
     // SWA
-    //finalize_read_locations(reads, genome, i);
+    //finalize_read_locations(reads, i);
 
     // free memory
     free_read_memory(reads, i);
@@ -124,6 +129,7 @@ int main(int argc, char** argv) {
   */
   kseq_destroy(ks);
   gzclose(fp);
+  free(genome);
 
   return 0;
 }
@@ -161,13 +167,25 @@ void get_locations(ReadInformation * reads, uint32_t number_of_reads) {
       offset = hashtable.get_offset(hash);
       frequency = hashtable.get_frequency(hash);
 
-      // Add every location (should I do a memcpy instead?)
       for (uint32_t k = 0; k < frequency; k++) {
-	locations[index] = hashtable.get_location(offset+k);
+	// Subtract seed to make sure locations start at beginning of read
+	locations[index] = hashtable.get_location(offset+k) - seed;
 	index++;
       }
     }
   }
+}
+
+void filter_reads(ReadInformation * reads, uint32_t number_of_reads) {
+  // Implement filters, based on flags set.
+  uint32_t * locations;
+  for(uint32_t i = 0; i < number_of_reads; i++) {
+    locations = reads[i].locations;
+  }
+}
+
+void finalize_read_locations(ReadInformation * reads, uint32_t number_of_reads) {
+  //SWA
 }
 
 // Read up: see if this is strictly necessary.
@@ -176,4 +194,37 @@ void free_read_memory(ReadInformation * reads, uint32_t number_of_reads) {
     free(reads[i].locations);
     free(reads[i].read);
   }
+}
+
+void read_genome() {
+  // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 2 => 0xc00000)
+  genome = (uint64_t *)malloc(0xc00000);
+  string genome_filename = hashtable_filename;
+  genome_filename += ".fasta";
+  ifstream fasta(genome_filename.c_str());
+  uint32_t index = 0;
+  if (fasta.is_open()) {
+    string line;
+    while(getline(fasta, line)) {
+      if(line.size() == 0)
+	continue;
+      if(line[0] == '>')
+	continue;
+      for (uint32_t i = 0; i < line.size(); i++) {
+	// If this is the first for the number, make sure it is 0.
+	if (index % 32 == 0)
+	  genome[index>>5] = 0;
+	// 32 bases can fit in a 64-bit number.
+	// Index>>5 is Index/32
+	// the other math converts the character into a 2-bit base,
+	//  then places it in the correct spot inside of the number.
+	// Or or Xor? The debate still rages.
+	genome[index>>5] |= (char_values[line[i]]<<((index%32)*2));
+      }
+    }
+  }
+  else {
+    cerr << "Unable to open genome." << endl;
+  }
+  fasta.close();
 }
