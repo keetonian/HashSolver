@@ -3,32 +3,38 @@
 #include <algorithm>
 
 BasicSolver::BasicSolver() {
-  hashtable = Hashtable();
+  hashtable = NULL;
 }
 
 BasicSolver::~BasicSolver() {
 }
 
-void BasicSolver::loadHashTables(string name) {
-  hashtable.read_from_file(name.c_str());
+void BasicSolver::loadHashTables(Hashtable * hashtable) {
+  this->hashtable = hashtable;
 }
 
-void BasicSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLength) {
+uint32_t BasicSolver::get_seed_size() {
+  return hashtable->get_seed_size();
+}
+
+void BasicSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLength, uint32_t limit) {
   this->seedNum = seedNum;
+  this->limit = limit;
   this->seedLength = seedLength;
   this->readLength = readLength;
 }
 
-uint32_t BasicSolver::solveDNA(string DNA) {
+int BasicSolver::solveDNA(string DNA, uint8_t * seeds) {
   assert(DNA.length() == readLength);
 
   uint32_t interval = readLength / seedNum;
 
-  uint32_t totalFreq = 0;
+  int totalFreq = 0;
 
   for (int i = 0; i < seedNum; i++) {
     string seed = DNA.substr(i * interval, seedLength);
-    totalFreq += hashtable.get_frequency(hashtable.get_hash(seed.c_str()));
+    totalFreq += hashtable->get_frequency(hashtable->get_hash(seed.c_str()));
+    seeds[i] = i * interval;
   }
 
   return totalFreq;

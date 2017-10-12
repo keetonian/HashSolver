@@ -12,11 +12,12 @@ public:
 	~HobbesSolver();
 	//void loadTree(string treeFileName);
 	//void generateTree(string treeFileName);
-	void init(uint32_t readLength, uint32_t seedNum, uint32_t seedLength);
+	void init(uint32_t readLength, uint32_t seedNum, uint32_t seedLength, uint32_t limit);
 	void reset();
-	unsigned int solveDNA(string DNA);
+	int solveDNA(string DNA, uint8_t * seeds);
 	void print();
-	void loadHashTables(string name);
+	void loadHashTables(Hashtable* hashtable);
+	uint32_t get_seed_size();
 
 private:
 	//HashTree tree;
@@ -28,5 +29,6 @@ private:
 	int *defaultInvertedList;
 	int *defaultDynamicMatrix;
 	int dynamicMatrixWidth;
-	Hashtable hashtable;
+	uint32_t limit;
+	Hashtable * hashtable;
 };

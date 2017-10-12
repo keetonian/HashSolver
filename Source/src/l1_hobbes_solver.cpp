@@ -14,7 +14,8 @@ HobbesSolver::HobbesSolver() {
   readLength = 0;
   seedNum = 0;
   seedLength = 0;
-  hashtable = Hashtable();
+  limit = 0;
+  hashtable = NULL;
 }
 
 HobbesSolver::~HobbesSolver() {
@@ -36,7 +37,7 @@ HobbesSolver::~HobbesSolver() {
   }
 }
 
-void HobbesSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLength) {
+void HobbesSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLength, uint32_t limit) {
   //Initialize the matrix
   if  (invertedList != NULL) {
     delete [] invertedList;
@@ -55,10 +56,11 @@ void HobbesSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLeng
     defaultDynamicMatrix = NULL;
   }
 
+  this->limit = limit;
   this->readLength = readLength;
   this->seedNum = seedNum;
   this->seedLength = seedLength;
-  dynamicMatrixWidth = readLength + 1 - seedNum * seedLength;
+  dynamicMatrixWidth = readLength + 1 - seedNum * seedLength - limit;
 
   invertedList = new int [readLength - seedLength + 1];
   defaultInvertedList = new int [readLength - seedLength + 1];
@@ -83,65 +85,58 @@ void HobbesSolver::reset() {
   memcpy(invertedList, defaultInvertedList, readLength - this->seedLength + 1);
 }
 
-void HobbesSolver::loadHashTables(string name) {
-  hashtable.read_from_file(name.c_str());
+void HobbesSolver::loadHashTables(Hashtable * hashtable) {
+  this->hashtable = hashtable;
 }
 
-uint32_t HobbesSolver::solveDNA(string DNA) {
+uint32_t HobbesSolver::get_seed_size() {
+  return hashtable->get_seed_size();
+}
+
+int HobbesSolver::solveDNA(string DNA, uint8_t * seeds) {
   assert(DNA.length() == readLength);
   reset();
 
-  for (int i = 0; i < readLength - seedLength + 1; i++)
-  {
+  for (int i = 0; i < readLength - seedLength + 1; i++) {
     string seed = DNA.substr(i, seedLength);
-    //tree.query(seed);
-
-    uint64_t hash = hashtable.get_hash(seed.c_str());
-
-    invertedList[i] = hashtable.get_frequency(hash);
-    if(hashtable.get_frequency(hash) > 0 && hashtable.get_location(hashtable.get_offset(hash)) < 100) {
-      cout << hashtable.get_location(hashtable.get_offset(hash)) << endl;
-      cout << "Error with: " << DNA << endl;
-    }
+    uint64_t hash = hashtable->get_hash(seed.c_str());
+    invertedList[i] = hashtable->get_frequency(hash);
   }
 
-  //cout << "\n";
-
-  for (int counter = 1; counter < seedNum + 1; counter++)
-  {
+  for (int counter = 1; counter < seedNum + 1; counter++) {
     dynamicMatrix[counter][0] = invertedList[(counter-1) * this->seedLength] + dynamicMatrix[counter - 1][0];
-    //cout << dynamicMatrix[counter][0];
-    //cout << " ";
   }
-  //cout << "\n";
-  //cout << "\n";
-  for (int heightCount = 1; heightCount < seedNum + 1; heightCount++)
-  {
-    for (int widthCount = 1; widthCount < dynamicMatrixWidth; widthCount++)
-    {
+  for (int heightCount = 1; heightCount < seedNum + 1; heightCount++) {
+    for (int widthCount = 1; widthCount < dynamicMatrixWidth; widthCount++) {
       int indexNum = (heightCount - 1) * seedLength + widthCount;
-
       dynamicMatrix[heightCount][widthCount] = dynamicMatrix[heightCount-1][widthCount] + invertedList[indexNum];
-
       if (dynamicMatrix[heightCount][widthCount-1] < dynamicMatrix[heightCount][widthCount]) 
 	dynamicMatrix[heightCount][widthCount] = dynamicMatrix[heightCount][widthCount-1];
 
-
-      //cout << dynamicMatrix[heightCount][widthCount-1];
-      //cout << "\t";			
-    }
-    //cout << dynamicMatrix[heightCount][dynamicMatrixWidth-1];
-    //cout << "\n";
+    }   
   }
-  //cout << "\n";
-  //cout << dynamicMatrix[seedNum][dynamicMatrixWidth-1];
-  //cout << "\n";
 
-  //block to calculate the seeds
+  int width = dynamicMatrixWidth - 1;
+  int invertedListIndex = readLength - seedLength - limit;
+  int prevAcc, seedFreq;
 
+  for(int heightCount = seedNum; heightCount >= 0; heightCount --) 
+  {
+    while(dynamicMatrix[heightCount][width] == dynamicMatrix[heightCount][width - 1] && width > 0)
+    {
+      --width;
+    }
 
-  //end block
+    if(heightCount < seedNum) {
+      seedFreq = prevAcc - dynamicMatrix[heightCount][width];
+      while(seedFreq != invertedList[invertedListIndex]) {
+	--invertedListIndex;
+      }
+      seeds[heightCount] = invertedListIndex;
+      invertedListIndex -= seedLength;
+    }
+    prevAcc = dynamicMatrix[heightCount][width];
+  }
 
   return dynamicMatrix[seedNum][dynamicMatrixWidth-1];
 }
-
