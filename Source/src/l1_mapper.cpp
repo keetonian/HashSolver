@@ -69,7 +69,8 @@ int main(int argc, char** argv) {
    *	Don't make everything automatically assume 100 bp reads.
    */
 
-  solver->init(ks->seq.l, number_of_seeds, hashtable.get_seed_size(), limit);
+  read_length = ks->seq.l;
+  solver->init(read_length, number_of_seeds, hashtable.get_seed_size(), limit);
 
   // Initialize the read information for simple batching.
   ReadInformation * reads = (ReadInformation*)malloc(sizeof(ReadInformation) * group);
@@ -169,7 +170,7 @@ void get_locations(ReadInformation * reads, uint32_t number_of_reads) {
 
       for (uint32_t k = 0; k < frequency; k++) {
 	// Subtract seed to make sure locations start at beginning of read
-	locations[index] = hashtable.get_location(offset+k) - seed;
+	locations[index] = hashtable.get_location(offset+k);// - seed;
 	index++;
       }
     }
@@ -177,10 +178,17 @@ void get_locations(ReadInformation * reads, uint32_t number_of_reads) {
 }
 
 void filter_reads(ReadInformation * reads, uint32_t number_of_reads) {
+  char reference[read_length];
   // Implement filters, based on flags set.
   uint32_t * locations;
   for(uint32_t i = 0; i < number_of_reads; i++) {
+    cout << i << ", " << reads[i].frequency << endl;
     locations = reads[i].locations;
+    for (uint32_t j = 0; j < reads[i].frequency; j++) {
+      decompress_2bit_dna(reference, locations[j]);
+      cout << reference << "\n";
+      cout << *(reads[i].read) << "\n\n";
+    }
   }
 }
 
@@ -197,8 +205,9 @@ void free_read_memory(ReadInformation * reads, uint32_t number_of_reads) {
 }
 
 void read_genome() {
-  // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 2 => 0xc00000)
-  genome = (uint64_t *)malloc(0xc00000);
+  // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 5 => 0x6000000)
+  // WRONG! FIX ME.
+  genome = (uint64_t *)malloc(0x6000000);
   string genome_filename = hashtable_filename;
   genome_filename += ".fasta";
   ifstream fasta(genome_filename.c_str());
@@ -227,4 +236,12 @@ void read_genome() {
     cerr << "Unable to open genome." << endl;
   }
   fasta.close();
+}
+
+void decompress_2bit_dna(char * destination, uint32_t starting_index) {
+  for (uint32_t i = 0; i < read_length; i++) {
+    uint64_t dna = genome[(starting_index+i)>>5];
+    uint8_t char_code = (dna >> (2*((starting_index + i)%32))) & 0x03;
+    destination[i] = reverse_values[char_code];
+  }
 }

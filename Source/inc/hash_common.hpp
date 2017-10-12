@@ -27,4 +27,7 @@ const static unsigned char char_values[128] =
   0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
+const static char reverse_values[4] = 
+{'A', 'C', 'G', 'T' };
+
 #endif //HASH_COMMON_H_
