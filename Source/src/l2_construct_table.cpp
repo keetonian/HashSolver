@@ -259,7 +259,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   cout << "Calculating hash tables for each seed" << endl;
   // Calculate hash tables for each location of each seed
   for(uint32_t i = 0; i < buckets->size(); i++){
-    if(i%1000 == 0){
+    if(i%(buckets->size()>>3) == 0){
       cout << (i) << "/" << buckets->size() << endl;
     }
     // Initialize all locations to 0
@@ -355,7 +355,6 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
     uint32_t startindex = l2hashtable.l2_get_index(i, 0, 0, 0);
     for(uint64_t j = 0; j < (36<<8); j++){
       uint32_t frequency = (table[j] == 0) ? 0 : table[j]->size();
-      l2hashtable.l2_set_frequency(j+startindex, frequency);
       l2hashtable.l2_set_offset(j+startindex, l2temploc.size());
       if(!frequency)
 	continue;
@@ -363,6 +362,9 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 	l2temploc.push_back(*it);
 	//cout << *it << endl;
       }
+    }
+    if (i == buckets->size() - 1) {
+      l2hashtable.l2_set_offset(l2hashtable.l2_get_index(i+1, 0, 0, 0), l2temploc.size());
     }
   }
 

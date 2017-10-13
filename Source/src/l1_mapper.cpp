@@ -16,6 +16,7 @@
 #include "seed_solver.hpp"
 #include "sw_aligner.hpp"
 #include "shd_filter.hpp"
+#include <chrono>
 
 
 using namespace std;
@@ -86,6 +87,7 @@ int main(int argc, char** argv) {
   }
 
 
+  double time_seeds, time_locations, time_filter, time_swa;
   // PIPELINE
   do {
 
@@ -98,16 +100,29 @@ int main(int argc, char** argv) {
 
     // What about doing it all backwards?
     // seed selection
+    auto start = chrono::steady_clock::now();
     get_seeds(reads, i);
+    auto end = chrono::steady_clock::now();
+    time_seeds += (end - start).count();
 
     // location selection
+    start = chrono::steady_clock::now();
     get_locations(reads, i);
+    end = chrono::steady_clock::now();
+    time_locations += (end - start).count();
 
     // filtering
+    start = chrono::steady_clock::now();
     filter_reads(reads, i);
+    end = chrono::steady_clock::now();
+    time_filter += (end - start).count();
 
     // SWA
-    finalize_read_locations(reads, i);
+    start = chrono::steady_clock::now();
+    if(do_swa)
+      finalize_read_locations(reads, i);
+    end = chrono::steady_clock::now();
+    time_swa += (end - start).count();
 
     // free memory
     free_read_memory(reads, i);
@@ -116,6 +131,11 @@ int main(int argc, char** argv) {
 
 
   cout << "Done" << endl;
+  cout << "Timing: " << endl;
+  cout << "Seeds: " << time_seeds << endl;
+  cout << "Locations: " << time_locations << endl;
+  cout << "Filters: " << time_filter << endl;
+  cout << "SWA: " << time_swa << endl;
   /*
   //int wait;
   //cin >> wait;

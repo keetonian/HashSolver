@@ -26,6 +26,7 @@ uint32_t limit;
 uint32_t group;
 uint64_t * genome;
 uint32_t read_length;
+bool do_swa;
 
 SeedSolver * solver;
 Hashtable hashtable;

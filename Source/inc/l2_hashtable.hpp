@@ -11,7 +11,7 @@ class L2Hashtable{
   uint64_t l2seed_size = 10;
   uint64_t l2num_tables = 0;
   uint64_t l2table_size = (36<<8);
-  info * l2hashtable = 0;
+  uint32_t * l2hashtable = 0;
   uint32_t * l2locations = 0;
   size_t l2locations_size = 0;
   uint32_t l2threshold = 0;

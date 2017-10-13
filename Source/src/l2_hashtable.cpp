@@ -85,7 +85,7 @@ size_t L2Hashtable::l2_get_locations_size(){
 
 void L2Hashtable::l2_init_hashtable(uint64_t num_tables){
   this->l2num_tables = num_tables;
-  this->l2hashtable = (info*)malloc(num_tables*l2table_size*sizeof(info));
+  this->l2hashtable = (uint32_t*)malloc((1 + num_tables * l2table_size) * sizeof(uint32_t));
 }
 
 void L2Hashtable::l2_init_locations(uint64_t size){
@@ -118,28 +118,28 @@ void L2Hashtable::l2_set_overflow(uint32_t i, uint64_t index){
 }
 
 uint32_t L2Hashtable::l2_get_frequency(uint32_t offset, uint32_t I, uint32_t J, uint8_t hash){
-  return l2hashtable[l2_get_index(offset, I, J, hash)].frequency;
+  return l2hashtable[l2_get_index(offset, I, J, hash+1)] - l2hashtable[l2_get_index(offset, I, J, hash)];
 }
 
 uint64_t L2Hashtable::l2_get_offset(uint32_t offset, uint32_t I, uint32_t J, uint8_t hash){
   uint64_t index = l2_get_index(offset, I, J, hash);
-  return l2hashtable[index].offset + l2_get_overflow(index);
+  return l2hashtable[index] + l2_get_overflow(index);
 }
 
 uint32_t L2Hashtable::l2_get_frequency2(uint64_t index){
-  return l2hashtable[index].frequency;
+  return l2hashtable[index+1] - l2hashtable[index];
 }
 
 uint64_t L2Hashtable::l2_get_offset2(uint64_t index){
-  return l2hashtable[index].offset + l2_get_overflow(index);
+  return l2hashtable[index] + l2_get_overflow(index);
 }
 
 void L2Hashtable::l2_set_frequency(uint64_t index, uint32_t frequency){
-  l2hashtable[index].frequency = frequency;
+  l2hashtable[index] = frequency;
 }
 
 void L2Hashtable::l2_set_offset(uint64_t index, uint32_t offset){
-  l2hashtable[index].offset = offset;
+  l2hashtable[index] = offset;
 }
 
 uint32_t L2Hashtable::l2_get_location(uint64_t offset){
@@ -186,7 +186,7 @@ void L2Hashtable::l2_write_hashtable_to_file(const char * name){
   }
 
   printf("Writing hashtable: total size is %zu\n", l2num_tables*l2table_size);
-  data = fwrite(l2hashtable, sizeof(info), l2num_tables*l2table_size, f);
+  data = fwrite(l2hashtable, sizeof(uint32_t), l2num_tables*l2table_size, f);
   printf("Hashtable written.\n");
   if(data != l2table_size * l2num_tables)
     printf("Not enough room on disk. Elements written: %zu/%zu\n", data, l2table_size * l2num_tables);
@@ -243,11 +243,11 @@ void L2Hashtable::l2_read_hashtable_from_file(const char * name){
     printf("Number of tables not read from file\n");
   l2_init_hashtable(size[0]);
 
-  data = fread(l2hashtable, sizeof(info), l2table_size * l2num_tables, f);
+  data = fread(l2hashtable, sizeof(uint32_t), l2table_size * l2num_tables, f);
   if(data != l2table_size * l2num_tables)
     printf("Error: Unable to read l2 hashtable\n");
   //for(uint64_t i = 0; i < size[0]*l2table_size+1; i++) {
-    //std::cout << l2hashtable[i].frequency << std::endl;
+    //std::cout << l2hashtable[i] << std::endl;
   //}
   fclose(f);
 }

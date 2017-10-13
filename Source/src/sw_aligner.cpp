@@ -16,6 +16,10 @@ void SWAligner::sw_init() {
   swa = smith_waterman_new();
 }
 
+SWAligner::~SWAligner() {
+  alignment_free(alignment);
+}
+
 bool SWAligner::sw_align(const char* read, const char* reference, int threshold) {
   sw_init();
   smith_waterman_align(read, reference, &scoring, swa);
@@ -23,6 +27,10 @@ bool SWAligner::sw_align(const char* read, const char* reference, int threshold)
   // Only pull out the best score.
   smith_waterman_fetch(swa, alignment);
   int score = alignment->score;
+
+  // Makes swa work right. However, I would much rather reset than reallocate.
+  // Is there a way to do this?
+  smith_waterman_free(swa);
 
   if (score >= threshold)
     return true;

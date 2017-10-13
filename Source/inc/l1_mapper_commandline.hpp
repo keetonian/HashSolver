@@ -14,6 +14,7 @@ extern uint32_t number_of_seeds;
 extern uint32_t error_threshold;
 extern uint32_t limit;
 extern uint32_t group;
+extern bool do_swa;
 std::string version = "1.0";
 std::string default_directory = ".";
 
@@ -39,6 +40,7 @@ void print_options(){
   std::cout << "-n  --naive\tUse naive seed selection" << std::endl;
   std::cout << "-p  --paired-end\tUse paired-end filtering" << std::endl;
   std::cout << "-s  --shd\tUse shifted-hamming-distance filtering" << std::endl;
+  std::cout << "-x  --no-swa\tDon't do the SWA step." << std::endl;
   std::cout << "-q  --qgram\tUse Q-gram filtering" << std::endl;
   std::cout << "-g  --group\tProcess the reads in groups of n numbers." << std::endl;
   std::cout << "-d  --directory\tOutput to the specified directory." << std::endl;
@@ -63,6 +65,7 @@ int parseCommands(int argc, char** argv){
     {"naive",	    required_argument,  0,  'n'},
     {"paired-end",  required_argument,	0,  'p'},
     {"shd",	    required_argument,  0,  's'},
+    {"no-swa",	    required_argument,  0,  'x'},
     {"qgram",	    required_argument,  0,  'q'},
     {"group",	    required_argument,  0,  'g'},
     {"directory",   required_argument,  0,  'd'},
@@ -74,11 +77,12 @@ int parseCommands(int argc, char** argv){
   // Write to the current directory unless otherwise directed.
   directory_name = (char*)default_directory.c_str();
   group = 1;
+  do_swa = true;
 
   // Check that only one seed selection algorithm is selected.
   // Load all options into variables.
   // Defaults: naive seed selection, no filters, write to std out.
-  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:g:obnpsqd:vh", longOptions, &index)) != -1){
+  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:g:xobnpsqd:vh", longOptions, &index)) != -1){
     switch(c)
     {
       case 't':
@@ -118,6 +122,9 @@ int parseCommands(int argc, char** argv){
 	break;
       case 's':
 	filters |= SHD;
+	break;
+      case 'x':
+	do_swa = false;
 	break;
       case 'q':
 	filters |= QGRAM;
