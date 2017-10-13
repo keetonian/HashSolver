@@ -14,6 +14,8 @@
 #include "l1_hobbes_solver.hpp"
 #include "l1_basic_solver.hpp"
 #include "seed_solver.hpp"
+#include "sw_aligner.hpp"
+#include "shd_filter.hpp"
 
 
 using namespace std;
@@ -72,6 +74,9 @@ int main(int argc, char** argv) {
   read_length = ks->seq.l;
   solver->init(read_length, number_of_seeds, hashtable.get_seed_size(), limit);
 
+  // Prepare Smith Waterman step
+  swa_threshold = read_length - error_threshold;
+
   // Initialize the read information for simple batching.
   ReadInformation * reads = (ReadInformation*)malloc(sizeof(ReadInformation) * group);
   for (uint32_t i = 0; i < group; i++) {
@@ -102,7 +107,7 @@ int main(int argc, char** argv) {
     filter_reads(reads, i);
 
     // SWA
-    //finalize_read_locations(reads, i);
+    finalize_read_locations(reads, i);
 
     // free memory
     free_read_memory(reads, i);
@@ -152,6 +157,7 @@ void get_locations(ReadInformation * reads, uint32_t number_of_reads) {
   uint32_t hash;
   uint32_t offset;
   uint32_t frequency;
+  uint32_t location;
 
   // Loop through every read
   for(uint32_t i = 0; i < number_of_reads; i++) {
@@ -169,8 +175,9 @@ void get_locations(ReadInformation * reads, uint32_t number_of_reads) {
       frequency = hashtable.get_frequency(hash);
 
       for (uint32_t k = 0; k < frequency; k++) {
-	// Subtract seed to make sure locations start at beginning of read
-	locations[index] = hashtable.get_location(offset+k);// - seed;
+	// Subtract seed position to make sure locations start at beginning of read
+	location = hashtable.get_location(offset+k);
+	locations[index] = location - seed;
 	index++;
       }
     }
@@ -182,17 +189,44 @@ void filter_reads(ReadInformation * reads, uint32_t number_of_reads) {
   // Implement filters, based on flags set.
   uint32_t * locations;
   for(uint32_t i = 0; i < number_of_reads; i++) {
-    cout << i << ", " << reads[i].frequency << endl;
     locations = reads[i].locations;
+    //cout << reads[i].frequency << endl;
     for (uint32_t j = 0; j < reads[i].frequency; j++) {
+      // filter. If something does not pass the filter, 
+      // then make the location 0, decrement frequency.
       decompress_2bit_dna(reference, locations[j]);
-      cout << reference << "\n";
-      cout << *(reads[i].read) << "\n\n";
+      //cout << "\t" << locations[j] << "\n";
+      //cout << "\t" << reference << "\n";
+      //cout << "\t" << *(reads[i].read) << "\n\n";
+      if(!shd_filter.filter(reads[i].read->c_str(), reference, error_threshold, read_length)){
+	locations[j] = 0;
+	reads[i].frequency--;
+      }
+
     }
   }
 }
 
 void finalize_read_locations(ReadInformation * reads, uint32_t number_of_reads) {
+  char reference[read_length];
+  uint32_t * locations;
+  uint32_t index;
+  for (uint32_t i = 0; i < number_of_reads; i++) {
+    locations = reads[i].locations;
+    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
+    index = 0;
+    for (uint32_t j = 0; j < reads[i].frequency; j++) {
+      //cout << j << "/" << reads[i].frequency << "\n";
+      while (!locations[index]) { index++; }
+      decompress_2bit_dna(reference, locations[index]);
+      // reads[i].read, reference
+      //swaligner.sw_init();
+      if (swaligner.sw_align(reads[i].read->c_str(), reference, swa_threshold))
+	cout << locations[index] << " ";
+      index++;
+    }
+    cout << "\n";
+  }
   //SWA
 }
 
@@ -221,20 +255,22 @@ void read_genome() {
 	continue;
       for (uint32_t i = 0; i < line.size(); i++) {
 	// If this is the first for the number, make sure it is 0.
-	if (index % 32 == 0)
-	  genome[index>>5] = 0;
+	//if (index % 32 == 0)
+	  //genome[index>>5] = 0;
 	// 32 bases can fit in a 64-bit number.
 	// Index>>5 is Index/32
 	// the other math converts the character into a 2-bit base,
 	//  then places it in the correct spot inside of the number.
 	// Or or Xor? The debate still rages.
-	genome[index>>5] |= (char_values[line[i]]<<((index%32)*2));
+	genome[index>>5] |= (((uint64_t)char_values[line[i]])<<((index%32)*2));
+	index++;
       }
     }
   }
   else {
     cerr << "Unable to open genome." << endl;
   }
+  //cout << index << endl;
   fasta.close();
 }
 

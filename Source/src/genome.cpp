@@ -34,7 +34,7 @@ void Genome::read_genome(const char* filename, int options){
 
 	if(debug)
 	  std::cout << line << std::endl;
-	
+
 	genome_vector.push_back(new std::vector<char>());
 	genome_names.push_back(line);
 	i = genome_vector.size() - 1;
@@ -64,23 +64,23 @@ void Genome::read_genome(const char* filename, int options){
   file.close();
   // Frequency counting code.
   /*for(uint32_t i = 0; i < genome_vector.at(0)->size()-100; i++){
-    //std::cout << genome_vector.at(0)->at(i);
-    if(genome_vector.at(0)->at(i) == 'N')
-      continue;
-    int a = 0;
-    int c = 0;
-    int g = 0; 
-    int t = 0;
-    for(uint32_t j = i; j < i+100; j++){
-      switch(genome_vector.at(0)->at(j)){
-	case 'A': a++; break;
-	case 'C': c++; break;
-	case 'G': g++; break;
-	case 'T': t++; break;
-	default: break;
-      }
-    }
-    std::cout << a << '\t' << c << '\t' << g << '\t' << t << std::endl;
+  //std::cout << genome_vector.at(0)->at(i);
+  if(genome_vector.at(0)->at(i) == 'N')
+  continue;
+  int a = 0;
+  int c = 0;
+  int g = 0; 
+  int t = 0;
+  for(uint32_t j = i; j < i+100; j++){
+  switch(genome_vector.at(0)->at(j)){
+  case 'A': a++; break;
+  case 'C': c++; break;
+  case 'G': g++; break;
+  case 'T': t++; break;
+  default: break;
+  }
+  }
+  std::cout << a << '\t' << c << '\t' << g << '\t' << t << std::endl;
   }*/
 }
 
@@ -152,16 +152,17 @@ int Genome::change_all_N(uint32_t consecutive){
 	uint32_t k = j;
 
 	// Find length of string. This does not deal with long strings of N's well.
-	while(k < chromosome->size() && chromosome->at(k) == 'N' && k-j != consecutive)
+	while(k < chromosome->size() && chromosome->at(k) == 'N')
 	  k++;
 
 	// Only change N if it is a spurious string of them
-	if(k < chromosome->size() && k-j <= consecutive && ((j > 0 && chromosome->at(j-1) != 'N') || j == 0)){
+	if(k <= chromosome->size() && (k-j <= consecutive) && ((j > 0 && chromosome->at(j-1) != 'N') || j == 0)){
 	  for(uint32_t l = j; l < k; l++){
 	    chromosome->at(l) = random_base();
 	    changed = 1;
 	  }
 	}
+	j = k-1;
       }
     }
   }
@@ -177,8 +178,8 @@ void Genome::write_genome(const char* filename, int options){
       fasta << "\n";
     fasta << genome_names.at(i) << std::endl;
     for(uint32_t j = 0; j < chromosome->size(); j++){
-      // Add bases to fasta file, with only 60 bases on a line.
-      if(j != 0 && j % 60 == 0)
+      // Add bases to fasta file, with only 70 bases on a line.
+      if(j != 0 && j % 70 == 0)
 	fasta << "\n";
       fasta << chromosome->at(j); 
     }

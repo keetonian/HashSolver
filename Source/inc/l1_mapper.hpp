@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include "l1_hashtable.hpp"
 #include "seed_solver.hpp"
+#include "sw_aligner.hpp"
+#include "shd_filter.hpp"
 
 typedef struct {
   uint32_t frequency;
@@ -19,6 +21,7 @@ uint8_t filters;
 uint8_t seed_selection_algorithm;
 uint32_t number_of_seeds = 1;
 uint32_t error_threshold;
+uint32_t swa_threshold;
 uint32_t limit;
 uint32_t group;
 uint64_t * genome;
@@ -26,6 +29,8 @@ uint32_t read_length;
 
 SeedSolver * solver;
 Hashtable hashtable;
+SWAligner swaligner;
+SHDFilter shd_filter;
 
 void get_seeds(ReadInformation * reads, uint32_t number_of_reads);
 

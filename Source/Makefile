@@ -9,6 +9,11 @@ SRC=./src
 OBJ=./build
 TST=./tests
 BIN=./bin
+SWA=./lib/seq-align
+SWA_ITEMS=-I $(SWA)/libs -I $(SWA)/src -L $(SWA)/libs/string_buffer -L $(SWA)/src -lalign -lstrbuf -lz
+SHD=./lib/Shifted-Hamming-Distance
+SHD_ITEMS=-I $(SHD) -mbmi -msse4.2
+SHD_OBJECTS=$(SHD)/mask.o $(SHD)/print.o $(SHD)/bit_convert.o $(SHD)/popcount.o $(SHD)/vector_filter.o
 TEST_CPP_FILES=$(TST)/genome_test.cpp $(TST)/l1_hashtable_test.cpp $(TST)/main_test.cpp $(TST)/l2_hashtable_test.cpp
 
 L1Baseline=$(BIN)/L1BaselineConstructor $(BIN)/L1BaselineQuery $(BIN)/L1BaselineCheck $(BIN)/L1BaselinePrintSeed $(BIN)/L1BaselineMapper
@@ -47,12 +52,18 @@ $(OBJ)/malloc_wrap.o: $(SRC)/malloc_wrap.c
 $(OBJ)/l2_hobbes_solver.o: $(SRC)/l2_hobbes_solver.cc $(OBJ)/l1_hashtable.o $(OBJ)/l2_hashtable.o
 	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC)
 
+$(OBJ)/sw_aligner.o: $(SRC)/sw_aligner.cpp 
+	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(SWA_ITEMS)
+
+$(OBJ)/shd_filter.o: $(SRC)/shd_filter.cpp $(SHD_OBJECTS)
+	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(SHD_ITEMS)
+
 
 $(BIN)/L1BaselineConstructor: $(SRC)/l1_construct_table.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o
 	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -L$(TBB) -I $(LIBRARIES)/tbb/include -I $(INC) $(LIB)
 
-$(BIN)/L1BaselineMapper: $(SRC)/l1_mapper.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o $(OBJ)/l1_hobbes_solver.o $(OBJ)/utils.o $(OBJ)/malloc_wrap.o $(OBJ)/l1_basic_solver.o
-	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -I $(INC) -lz -lm -lrt -lpthread
+$(BIN)/L1BaselineMapper: $(SRC)/l1_mapper.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o $(OBJ)/l1_hobbes_solver.o $(OBJ)/utils.o $(OBJ)/malloc_wrap.o $(OBJ)/l1_basic_solver.o $(OBJ)/sw_aligner.o $(OBJ)/shd_filter.o $(SHD_OBJECTS)
+	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -I $(INC) $(SWA_ITEMS) $(SHD_ITEMS) -lz -lm -lrt -lpthread
 
 $(BIN)/L1BaselineQuery: $(SRC)/l1_query_hash.cpp $(OBJ)/l1_hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^ -I $(INC)
