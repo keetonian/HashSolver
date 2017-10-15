@@ -79,6 +79,10 @@ uint64_t L2Hashtable::l2_get_num_tables(){
   return l2num_tables;
 }
 
+uint64_t L2Hashtable::l2_get_table_size() {
+  return l2table_size;
+}
+
 size_t L2Hashtable::l2_get_locations_size(){
   return l2locations_size;
 }
@@ -107,7 +111,7 @@ uint64_t L2Hashtable::l2_get_index(uint32_t offset, uint32_t I, uint32_t J, uint
 uint64_t L2Hashtable::l2_get_overflow(uint64_t index){
   uint64_t overflow = 0;
   for(uint32_t i = 0; i < l2overflow_size; i++){
-    if(index > l2overflow_values[i])
+    if(index >= l2overflow_values[i])
       overflow += L2_OVERFLOW;
   }
   return overflow;

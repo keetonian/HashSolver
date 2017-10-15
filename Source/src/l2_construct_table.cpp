@@ -378,6 +378,22 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
     //cout << check_genome(l2temploc.at(i), genome) << "\n";
   }
 
+  // Calculate the overflow values
+  uint32_t previous_value = 0;
+  vector<uint32_t> overflow_values;
+  cout << l2hashtable.l2_get_num_tables() << " " << buckets->size() << endl;
+  for (uint64_t i = 0; i < l2hashtable.l2_get_num_tables() * l2hashtable.l2_get_table_size() + 1; i++) {
+    uint32_t current_value = l2hashtable.l2_get_offset2(i);
+    if (current_value < previous_value)
+      overflow_values.push_back(i);
+    previous_value = current_value;
+  }
+
+  l2hashtable.l2_init_overflow(overflow_values.size());
+  for (uint32_t i = 0; i < overflow_values.size(); i++) {
+    l2hashtable.l2_set_overflow(i, overflow_values.at(i));
+  }
+
   cout << "Finished populating l2 tables" << endl;
 
   // Free l2 table used in this function

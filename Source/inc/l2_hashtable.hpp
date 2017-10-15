@@ -31,6 +31,7 @@ class L2Hashtable{
   uint8_t pearsonHash(const char * seed);
   void l2_set_num_tables(uint64_t number);
   uint64_t l2_get_num_tables();
+  uint64_t l2_get_table_size();
   size_t l2_get_locations_size();
   uint32_t l2_get_threshold();
   uint32_t l2_get_l2_seed_size();

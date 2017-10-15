@@ -17,6 +17,8 @@
 #include "sw_aligner.hpp"
 #include "shd_filter.hpp"
 #include <chrono>
+#include "edlib.h"
+#include "mapper_common.hpp"
 
 
 using namespace std;
@@ -25,7 +27,7 @@ int main(int argc, char** argv) {
 
   // Parse Command Line Parameters
   int command_line = parseCommands(argc, argv);
-  if(command_line || !hashtable_filename || !reads_filename || !seed_selection_algorithm) {
+  if(command_line || !hashtable_filename || !reads_filename ) {
     print_options();
     exit(1);
   }
@@ -38,15 +40,30 @@ int main(int argc, char** argv) {
   cout << "genome read" << endl;
 
   // Select Solver
-  if (seed_selection_algorithm == 0x1) {
-    solver = new BasicSolver();
-    solver->loadHashTables(&hashtable);
-  } else if (seed_selection_algorithm == 0x2) {
-    solver = new HobbesSolver();
-    solver->loadHashTables(&hashtable);
-  } else if (seed_selection_algorithm == 0x4) {
-    // Optimal solver.
-    // Uses bwa instead of hash table.
+  switch(seed_selection) {
+    case SeedSelection::naive: solver = new BasicSolver();
+			       solver->loadHashTables(&hashtable);
+			       break;
+    case SeedSelection::hobbes: 
+			       solver = new HobbesSolver();
+			       solver->loadHashTables(&hashtable);
+			       break;
+    case SeedSelection::optimal:
+			       // Optimal solver.
+			       // Uses bwa instead of hash table.
+			       break;
+  }
+
+  // Select SWA implementation
+  switch(swa_function) {
+    case SWAFunction::noswa: finalize_read_locations = &NoSWA;
+			     break;
+    case SWAFunction::seqalign: finalize_read_locations = &SWA_Seqalign;
+				break;
+    case SWAFunction::edlib: finalize_read_locations = &Meyers_Edlib;
+			     break;
+    case SWAFunction::opal: finalize_read_locations = &Opal;
+			    break;
   }
 
   // Load Read File
@@ -87,7 +104,7 @@ int main(int argc, char** argv) {
   }
 
 
-  double time_seeds, time_locations, time_filter, time_swa;
+  double time_seeds=0, time_locations=0, time_filter=0, time_swa=0;
   // PIPELINE
   do {
 
@@ -148,7 +165,7 @@ int main(int argc, char** argv) {
   cout << "seedNum: " << number_of_seeds << " | seedLength: " << hashtable.get_seed_size() << endl;
   //output << "seedNum: " << number_of_seeds << " | seedLength: " << hashtable.get_seed_size() << endl;
   for (map<int, unsigned long long>::iterator iter = frequencyCounter.begin(); iter != frequencyCounter.end(); iter++)
-    cout << iter->first << " " << iter->second << endl;
+  cout << iter->first << " " << iter->second << endl;
 
 
   //output.close();
@@ -227,7 +244,7 @@ void filter_reads(ReadInformation * reads, uint32_t number_of_reads) {
   }
 }
 
-void finalize_read_locations(ReadInformation * reads, uint32_t number_of_reads) {
+void NoSWA(ReadInformation * reads, uint32_t number_of_reads) {
   char reference[read_length];
   uint32_t * locations;
   uint32_t index;
@@ -236,18 +253,78 @@ void finalize_read_locations(ReadInformation * reads, uint32_t number_of_reads) 
     cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
     index = 0;
     for (uint32_t j = 0; j < reads[i].frequency; j++) {
-      //cout << j << "/" << reads[i].frequency << "\n";
       while (!locations[index]) { index++; }
       decompress_2bit_dna(reference, locations[index]);
-      // reads[i].read, reference
-      //swaligner.sw_init();
+      cout << locations[index] << " ";
+      index++;
+    }
+    cout << "\n";
+  }
+}
+
+void SWA_Seqalign(ReadInformation * reads, uint32_t number_of_reads) {
+  char reference[read_length];
+  uint32_t * locations;
+  uint32_t index;
+  for (uint32_t i = 0; i < number_of_reads; i++) {
+    locations = reads[i].locations;
+    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
+    index = 0;
+    for (uint32_t j = 0; j < reads[i].frequency; j++) {
+      while (!locations[index]) { index++; }
+      decompress_2bit_dna(reference, locations[index]);
       if (swaligner.sw_align(reads[i].read->c_str(), reference, swa_threshold))
 	cout << locations[index] << " ";
       index++;
     }
     cout << "\n";
   }
-  //SWA
+}
+
+void Meyers_Edlib(ReadInformation * reads, uint32_t number_of_reads) {
+  char reference[read_length];
+  uint32_t * locations;
+  uint32_t index;
+  for (uint32_t i = 0; i < number_of_reads; i++) {
+    locations = reads[i].locations;
+    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
+    index = 0;
+    for (uint32_t j = 0; j < reads[i].frequency; j++) {
+      while (!locations[index]) { 
+	index++;
+      }
+      decompress_2bit_dna(reference, locations[index]);
+      EdlibAlignResult result = edlibAlign(reads[i].read->c_str(), read_length, reference, read_length, edlibNewAlignConfig(error_threshold, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0));
+      if (result.editDistance != -1 ){
+	cout << locations[index] << " ";
+      }
+      edlibFreeAlignResult(result);
+      index++;
+    }
+    cout << "\n";
+  }
+}
+
+void Opal(ReadInformation * reads, uint32_t number_of_reads) {
+  char reference[read_length];
+  uint32_t * locations;
+  uint32_t index;
+  for (uint32_t i = 0; i < number_of_reads; i++) {
+    locations = reads[i].locations;
+    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
+    index = 0;
+    for (uint32_t j = 0; j < reads[i].frequency; j++) {
+      while (!locations[index]) { index++; }
+      decompress_2bit_dna(reference, locations[index]);
+      EdlibAlignResult result = edlibAlign(reads[i].read->c_str(), read_length, reference, read_length, edlibNewAlignConfig(error_threshold, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0));
+      if (result.editDistance != -1 ){ 
+	cout << locations[index] << " ";
+      }
+      edlibFreeAlignResult(result);
+      index++;
+    }
+    cout << "\n";
+  }
 }
 
 // Read up: see if this is strictly necessary.
@@ -276,7 +353,7 @@ void read_genome() {
       for (uint32_t i = 0; i < line.size(); i++) {
 	// If this is the first for the number, make sure it is 0.
 	//if (index % 32 == 0)
-	  //genome[index>>5] = 0;
+	//genome[index>>5] = 0;
 	// 32 bases can fit in a 64-bit number.
 	// Index>>5 is Index/32
 	// the other math converts the character into a 2-bit base,

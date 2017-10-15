@@ -6,6 +6,7 @@
 #include "seed_solver.hpp"
 #include "sw_aligner.hpp"
 #include "shd_filter.hpp"
+#include "mapper_common.hpp"
 
 typedef struct {
   uint32_t frequency;
@@ -13,6 +14,8 @@ typedef struct {
   std::string * read;
   uint32_t * locations;
 } ReadInformation;
+
+typedef void (*Finalize_Reads) (ReadInformation * reads, uint32_t number_of_reads);
 
 char* reads_filename = 0;
 char* directory_name = 0;
@@ -28,10 +31,15 @@ uint64_t * genome;
 uint32_t read_length;
 bool do_swa;
 
+SWAFunction swa_function;
+SeedSelection seed_selection;
+
 SeedSolver * solver;
 Hashtable hashtable;
 SWAligner swaligner;
 SHDFilter shd_filter;
+
+Finalize_Reads finalize_read_locations = NULL;
 
 void get_seeds(ReadInformation * reads, uint32_t number_of_reads);
 
@@ -41,7 +49,10 @@ void free_read_memory(ReadInformation * reads, uint32_t number_of_reads);
 
 void filter_reads(ReadInformation * reads, uint32_t number_of_reads);
 
-void finalize_read_locations(ReadInformation * reads, uint32_t number_of_reads);
+void NoSWA(ReadInformation * reads, uint32_t number_of_reads);
+void SWA_Seqalign(ReadInformation * reads, uint32_t number_of_reads);
+void Meyers_Edlib(ReadInformation * reads, uint32_t number_of_reads);
+void Opal(ReadInformation * reads, uint32_t number_of_reads);
 
 void decompress_2bit_dna(char * destination, uint32_t starting_index);
 

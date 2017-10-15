@@ -1,4 +1,4 @@
-LIBRARIES= tbb seq-align bwa Shifted-Hamming-Distance
+LIBRARIES= tbb seq-align bwa Shifted-Hamming-Distance edlib
 
 all:
 	for LIBRARY in $(LIBRARIES) ; do \
