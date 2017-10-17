@@ -16,10 +16,6 @@ void SWAligner::sw_init() {
   swa = smith_waterman_new();
 }
 
-SWAligner::~SWAligner() {
-  alignment_free(alignment);
-}
-
 bool SWAligner::sw_align(const char* read, const char* reference, int threshold) {
   sw_init();
   smith_waterman_align(read, reference, &scoring, swa);

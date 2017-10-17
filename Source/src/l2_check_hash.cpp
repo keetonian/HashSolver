@@ -73,9 +73,10 @@ int main(int argc, char** argv){
       if(loc.size() != hashtable.get_frequency(i)){
 	cout << "Size mismatch: " << i << '\t' << reverse_hash(i) << '\t' << hashtable.get_frequency(i) << '\t' << loc.size() << '\t' << (1+offset_end-offset_start)/36 << endl;
 	for(auto it = loc.begin(); it != loc.end(); it++){
-	  if(get_seed(*it, &genome) == reverse_hash(i))
-	    cout << "Location matched!" << endl; 
+	  if(get_seed(*it, &genome) != reverse_hash(i))
+	    cout << "Mismatch "; 
 	}
+	cout << endl;
       }
       else{
 	//cout << i << '\t' << reverse_hash(i) << '\t' << hashtable.get_frequency(i) << endl;// << hashtable.get_frequency(i) << endl;

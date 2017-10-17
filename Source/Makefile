@@ -16,10 +16,12 @@ SHD_ITEMS=-I $(SHD) -mbmi -msse4.2
 SHD_OBJECTS=$(SHD)/mask.o $(SHD)/print.o $(SHD)/bit_convert.o $(SHD)/popcount.o $(SHD)/vector_filter.o
 EDLIB=./lib/edlib
 EDLIB_ITEMS=-I $(EDLIB)/edlib/include -L $(EDLIB)/build/lib -L $(EDLIB) -ledlib_static
+OPAL=./lib/opal
+OPAL_ITEMS=-I $(OPAL)/src
 TEST_CPP_FILES=$(TST)/genome_test.cpp $(TST)/l1_hashtable_test.cpp $(TST)/main_test.cpp $(TST)/l2_hashtable_test.cpp
 
 L1Baseline=$(BIN)/L1BaselineConstructor $(BIN)/L1BaselineQuery $(BIN)/L1BaselineCheck $(BIN)/L1BaselinePrintSeed $(BIN)/L1BaselineMapper
-L1Compressed=$(BIN)/L1CompressedConstructor $(BIN)/L1CompressedQuery $(BIN)/L1CompressedCheck $(BIN)/L1CompressedPrintSeed $(BIN)/L1CompressedMapper
+L1Compressed=$(BIN)/L1CompressedConstructor $(BIN)/L1CompressedQuery $(BIN)/L1CompressedCheck $(BIN)/L1CompressedPrintSeed #$(BIN)/L1CompressedMapper
 L2Baseline=$(BIN)/L2BaselineConstructor $(BIN)/L2BaselineQuery $(BIN)/L2BaselineCheck $(BIN)/L2BaselinePrintSeed
 L2CompressedBaseline=$(BIN)/L2CompressedBaselineConstructor $(BIN)/L2CompressedBaselineQuery $(BIN)/L2CompressedBaselineCheck $(BIN)/L2CompressedBaselinePrintSeed
 
@@ -60,12 +62,16 @@ $(OBJ)/sw_aligner.o: $(SRC)/sw_aligner.cpp
 $(OBJ)/shd_filter.o: $(SRC)/shd_filter.cpp $(SHD_OBJECTS)
 	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(SHD_ITEMS)
 
+$(OBJ)/opal_aligner.o: $(SRC)/opal_aligner.cpp $(OPAL)/src/opal.o
+	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(OPAL_ITEMS)
+
+
 
 $(BIN)/L1BaselineConstructor: $(SRC)/l1_construct_table.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o
 	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -L$(TBB) -I $(LIBRARIES)/tbb/include -I $(INC) $(LIB)
 
-$(BIN)/L1BaselineMapper: $(SRC)/l1_mapper.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o $(OBJ)/l1_hobbes_solver.o $(OBJ)/utils.o $(OBJ)/malloc_wrap.o $(OBJ)/l1_basic_solver.o $(OBJ)/sw_aligner.o $(OBJ)/shd_filter.o $(SHD_OBJECTS)
-	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -I $(INC) $(SWA_ITEMS) $(SHD_ITEMS) $(EDLIB_ITEMS) -lz -lm -lrt -lpthread
+$(BIN)/L1BaselineMapper: $(SRC)/l1_mapper.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o $(OBJ)/l1_hobbes_solver.o $(OBJ)/utils.o $(OBJ)/malloc_wrap.o $(OBJ)/l1_basic_solver.o $(OBJ)/sw_aligner.o $(OBJ)/shd_filter.o $(SHD_OBJECTS) $(OBJ)/opal_aligner.o $(OPAL)/src/opal.o
+	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -I $(INC) $(SWA_ITEMS) $(SHD_ITEMS) $(EDLIB_ITEMS) $(OPAL_ITEMS) -lz -lm -lrt -lpthread
 
 $(BIN)/L1BaselineQuery: $(SRC)/l1_query_hash.cpp $(OBJ)/l1_hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^ -I $(INC)

@@ -1,4 +1,5 @@
 #include <vector>
+#include <set>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -19,6 +20,7 @@
 #include <chrono>
 #include "edlib.h"
 #include "mapper_common.hpp"
+#include "opal_aligner.hpp"
 
 
 using namespace std;
@@ -36,7 +38,8 @@ int main(int argc, char** argv) {
   hashtable.read_from_file(hashtable_filename);
 
   // Load genome
-  read_genome();
+  read_genome_2bit();
+  read_genome_char();
   cout << "genome read" << endl;
 
   // Select Solver
@@ -103,6 +106,7 @@ int main(int argc, char** argv) {
     reads[i] = read;
   }
 
+  int number_completed = 0;
 
   double time_seeds=0, time_locations=0, time_filter=0, time_swa=0;
   // PIPELINE
@@ -111,10 +115,13 @@ int main(int argc, char** argv) {
     // Get batch of reads
     uint32_t i = 0;
     do {
-      reads[i].read = new std::string(ks->seq.s);
-      i++;
+      if (pre_filter(ks->seq.s)) {
+	reads[i].read = new std::string(ks->seq.s);
+	i++;
+      }
     } while(i < group && kseq_read(ks) >= 0);
 
+    cout << number_completed << endl;
     // What about doing it all backwards?
     // seed selection
     auto start = chrono::steady_clock::now();
@@ -143,16 +150,17 @@ int main(int argc, char** argv) {
 
     // free memory
     free_read_memory(reads, i);
+    number_completed++;
 
   } while (kseq_read(ks) >= 0);
 
 
-  cout << "Done" << endl;
-  cout << "Timing: " << endl;
-  cout << "Seeds: " << time_seeds << endl;
-  cout << "Locations: " << time_locations << endl;
-  cout << "Filters: " << time_filter << endl;
-  cout << "SWA: " << time_swa << endl;
+  cerr << "Done" << endl;
+  cerr << "Timing: " << endl;
+  cerr << "Seeds: " << time_seeds << endl;
+  cerr << "Locations: " << time_locations << endl;
+  cerr << "Filters: " << time_filter << endl;
+  cerr << "SWA: " << time_swa << endl;
   /*
   //int wait;
   //cin >> wait;
@@ -173,6 +181,8 @@ int main(int argc, char** argv) {
   kseq_destroy(ks);
   gzclose(fp);
   free(genome);
+  free(genome_char);
+  hashtable.free_memory();
 
   return 0;
 }
@@ -244,6 +254,19 @@ void filter_reads(ReadInformation * reads, uint32_t number_of_reads) {
   }
 }
 
+// Returns false if read is
+bool pre_filter(string read) {
+  int count = 0;
+  for(uint32_t i = 0; i < read_length; i++) {
+    if (read[i] == 'N'){
+      count++;
+      if (count > error_threshold)
+	return false;
+    }
+  }
+  return true;
+}
+
 void NoSWA(ReadInformation * reads, uint32_t number_of_reads) {
   char reference[read_length];
   uint32_t * locations;
@@ -305,25 +328,39 @@ void Meyers_Edlib(ReadInformation * reads, uint32_t number_of_reads) {
   }
 }
 
+void convert_read(string read, unsigned char * destination, uint32_t read_length) {
+  for (uint32_t i = 0; i < read_length; i++) {
+    destination[i] = (unsigned char)char_values[read[i]];
+  }
+}
+
 void Opal(ReadInformation * reads, uint32_t number_of_reads) {
-  char reference[read_length];
+  // Need a function to convert read to 0,1,2,3
+  // Need a function to convert the reference to 0,1,2,3 (unsigned char)
+  int reference_length = 0;
+  unsigned char read[read_length];
   uint32_t * locations;
   uint32_t index;
   for (uint32_t i = 0; i < number_of_reads; i++) {
+    unsigned char ** reference = (unsigned char **)malloc(reads[i].frequency * sizeof(unsigned char *));
+    int * reference_lengths = (int*)malloc(reads[i].frequency * sizeof(int));
     locations = reads[i].locations;
     cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
     index = 0;
+
+    convert_read(*(reads[i].read), read, read_length);
+    reference_length = reads[i].frequency;
+
     for (uint32_t j = 0; j < reads[i].frequency; j++) {
       while (!locations[index]) { index++; }
-      decompress_2bit_dna(reference, locations[index]);
-      EdlibAlignResult result = edlibAlign(reads[i].read->c_str(), read_length, reference, read_length, edlibNewAlignConfig(error_threshold, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0));
-      if (result.editDistance != -1 ){ 
-	cout << locations[index] << " ";
-      }
-      edlibFreeAlignResult(result);
+      //decompress_2bit_dna(reference, locations[index]);
+      reference[j] = genome_char + locations[index];
+      reference_lengths[j] = read_length;
       index++;
     }
-    cout << "\n";
+    opal_aligner.opal_swa(read, read_length, reference, reference_length, reference_lengths);
+    free(reference);
+    free(reference_lengths);
   }
 }
 
@@ -335,10 +372,46 @@ void free_read_memory(ReadInformation * reads, uint32_t number_of_reads) {
   }
 }
 
-void read_genome() {
+void read_genome_char() {
   // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 5 => 0x6000000)
   // WRONG! FIX ME.
-  genome = (uint64_t *)malloc(0x6000000);
+  genome_char = (unsigned char *)malloc(0xc0000000);
+  string genome_filename = hashtable_filename;
+  genome_filename += ".fasta";
+  ifstream fasta(genome_filename.c_str());
+  uint32_t index = 0;
+  if (fasta.is_open()) {
+    string line;
+    while(getline(fasta, line)) {
+      if(line.size() == 0)
+	continue;
+      if(line[0] == '>')
+	continue;
+      for (uint32_t i = 0; i < line.size(); i++) {
+	// If this is the first for the number, make sure it is 0.
+	//if (index % 32 == 0)
+	//genome[index>>5] = 0;
+	// 32 bases can fit in a 64-bit number.
+	// Index>>5 is Index/32
+	// the other math converts the character into a 2-bit base,
+	//  then places it in the correct spot inside of the number.
+	// Or or Xor? The debate still rages.
+	genome_char[index] = (unsigned char)char_values[line[i]];
+	index++;
+      }
+    }
+  }
+  else {
+    cerr << "Unable to open genome." << endl;
+  }
+  //cout << index << endl;
+  fasta.close();
+}
+
+void read_genome_2bit() {
+  // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 5 => 0x6000000)
+  // WRONG! FIX ME.
+  genome = (uint64_t *)malloc(0x7000000*sizeof(uint64_t));
   string genome_filename = hashtable_filename;
   genome_filename += ".fasta";
   ifstream fasta(genome_filename.c_str());
@@ -367,6 +440,7 @@ void read_genome() {
   else {
     cerr << "Unable to open genome." << endl;
   }
+  cout << index << endl;
   //cout << index << endl;
   fasta.close();
 }

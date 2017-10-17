@@ -16,3 +16,6 @@
 [submodule "Source/lib/opal"]
 	path = Source/lib/opal
 	url = http://github.com/Martinsos/opal
+[submodule "Source/lib/Complete-Striped-Smith-Waterman-Library"]
+	path = Source/lib/Complete-Striped-Smith-Waterman-Library
+	url = https://github.com/mengyao/Complete-Striped-Smith-Waterman-Library

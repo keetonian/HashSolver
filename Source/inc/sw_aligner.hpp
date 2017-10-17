@@ -23,7 +23,6 @@ class SWAligner {
 
   public:
   SWAligner();
-  ~SWAligner();
   void sw_init();
   bool sw_align(const char* read, const char* reference, int threshold);
 };
