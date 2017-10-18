@@ -57,6 +57,7 @@ bool NoSWA(std::string * read, char * reference);
 bool SWA_Seqalign(std::string * read, char * reference);
 bool Meyers_Edlib(std::string * read, char * reference);
 bool Opal(std::string * read, char * reference);
+bool SSW(std::string * read, char * reference);
 
 void decompress_2bit_dna(char * destination, uint32_t starting_index);
 void convert_for_opal(std::string read, unsigned char * destination, uint32_t read_length);

@@ -21,6 +21,7 @@
 #include "edlib.h"
 #include "mapper_common.hpp"
 #include "opal_aligner.hpp"
+#include "ssw_cpp.h"
 
 
 using namespace std;
@@ -66,6 +67,8 @@ int main(int argc, char** argv) {
     case SWAFunction::edlib: finalize_read_locations = &Meyers_Edlib;
 			     break;
     case SWAFunction::opal: finalize_read_locations = &Opal;
+			    break;
+    case SWAFunction::ssw: finalize_read_locations = &SSW;
 			    break;
   }
 
@@ -287,6 +290,16 @@ bool Opal(string * read, char * reference) {
   ref[0] = rf;
 
   return opal_aligner.opal_swa(rd, read_length, ref, reference_length, reference_lengths);
+}
+
+bool SSW(string * read, char * reference) {
+  StripedSmithWaterman::Aligner aligner;
+  StripedSmithWaterman::Filter filter;
+  StripedSmithWaterman::Alignment alignment;
+  aligner.Align(read->c_str(), reference, read_length, filter, &alignment, read_length);
+  if (alignment.sw_score >= 190)
+   return true;
+  return false;
 }
 
 // Read the genome into 8 bit representation, using 0 1 2 3 instead of ACTG

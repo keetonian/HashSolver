@@ -45,6 +45,7 @@ void print_options(){
   std::cout << "\t\t\t2: use seq-align's SWA implementation" << std::endl;
   std::cout << "\t\t\t3: use edlib's SWA implementation" << std::endl;
   std::cout << "\t\t\t4: use opal's SWA implementation" << std::endl;
+  std::cout << "\t\t\t5: use Complete-Striped-Smith-Waterman-Library's SWA implementation" << std::endl;
   std::cout << "-q  --qgram\tUse Q-gram filtering" << std::endl;
   std::cout << "-g  --group\tProcess the reads in groups of n numbers." << std::endl;
   std::cout << "-d  --directory\tOutput to the specified directory." << std::endl;
@@ -140,6 +141,8 @@ int parseCommands(int argc, char** argv){
 	  case 3: swa_function = SWAFunction::edlib;
 		  break;
 	  case 4: swa_function = SWAFunction::opal;
+		  break;
+	  case 5: swa_function = SWAFunction::ssw;
 		  break;
 	}
 	break;

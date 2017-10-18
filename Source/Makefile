@@ -18,6 +18,9 @@ EDLIB=./lib/edlib
 EDLIB_ITEMS=-I $(EDLIB)/edlib/include -L $(EDLIB)/build/lib -L $(EDLIB) -ledlib_static
 OPAL=./lib/opal
 OPAL_ITEMS=-I $(OPAL)/src
+SSW=./lib/Complete-Striped-Smith-Waterman-Library
+SSW_ITEMS=-I $(SSW)/src
+SSW_FILES=$(SSW)/src/ssw_cpp.cpp $(SSW)/src/ssw.c
 TEST_CPP_FILES=$(TST)/genome_test.cpp $(TST)/l1_hashtable_test.cpp $(TST)/main_test.cpp $(TST)/l2_hashtable_test.cpp
 
 L1Baseline=$(BIN)/L1BaselineConstructor $(BIN)/L1BaselineQuery $(BIN)/L1BaselineCheck $(BIN)/L1BaselinePrintSeed $(BIN)/L1BaselineMapper
@@ -70,8 +73,8 @@ $(OBJ)/opal_aligner.o: $(SRC)/opal_aligner.cpp $(OPAL)/src/opal.o
 $(BIN)/L1BaselineConstructor: $(SRC)/l1_construct_table.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o
 	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -L$(TBB) -I $(LIBRARIES)/tbb/include -I $(INC) $(LIB)
 
-$(BIN)/L1BaselineMapper: $(SRC)/l1_mapper.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o $(OBJ)/l1_hobbes_solver.o $(OBJ)/utils.o $(OBJ)/malloc_wrap.o $(OBJ)/l1_basic_solver.o $(OBJ)/sw_aligner.o $(OBJ)/shd_filter.o $(SHD_OBJECTS) $(OBJ)/opal_aligner.o $(OPAL)/src/opal.o
-	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -I $(INC) $(SWA_ITEMS) $(SHD_ITEMS) $(EDLIB_ITEMS) $(OPAL_ITEMS) -lz -lm -lrt -lpthread
+$(BIN)/L1BaselineMapper: $(SRC)/l1_mapper.cpp  $(OBJ)/genome.o $(OBJ)/l1_hashtable.o $(OBJ)/l1_hobbes_solver.o $(OBJ)/utils.o $(OBJ)/malloc_wrap.o $(OBJ)/l1_basic_solver.o $(OBJ)/sw_aligner.o $(OBJ)/shd_filter.o $(SHD_OBJECTS) $(OBJ)/opal_aligner.o $(OPAL)/src/opal.o $(SSW_FILES)
+	$(CXX) $(CFLAGS) $(DFLAGS) -o $@ $^ -I $(INC) $(SWA_ITEMS) $(SHD_ITEMS) $(EDLIB_ITEMS) $(OPAL_ITEMS) $(SSW_ITEMS) -lz -lm -lrt -lpthread
 
 $(BIN)/L1BaselineQuery: $(SRC)/l1_query_hash.cpp $(OBJ)/l1_hashtable.o
 	$(CXX) $(CFLAGS) -o $@ $^ -I $(INC)
