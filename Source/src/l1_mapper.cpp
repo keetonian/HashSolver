@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
 
   // Load genome
   read_genome_2bit();
-  read_genome_char();
+  //read_genome_char();
   cout << "genome read" << endl;
 
   // Select Solver
@@ -92,169 +92,144 @@ int main(int argc, char** argv) {
    *	Don't make everything automatically assume 100 bp reads.
    */
 
+  // Find read length
   read_length = ks->seq.l;
+
+  // Init seed solver
   solver->init(read_length, number_of_seeds, hashtable.get_seed_size(), limit);
 
   // Prepare Smith Waterman step
   swa_threshold = read_length - error_threshold;
 
   // Initialize the read information for simple batching.
-  ReadInformation * reads = (ReadInformation*)malloc(sizeof(ReadInformation) * group);
-  for (uint32_t i = 0; i < group; i++) {
-    ReadInformation read;
-    read.seeds = new uint8_t[number_of_seeds];
-    reads[i] = read;
-  }
 
-  int number_completed = 0;
+  time_seeds=0; time_locations=0; time_filter=0; time_swa=0;
 
-  double time_seeds=0, time_locations=0, time_filter=0, time_swa=0;
   // PIPELINE
   do {
+    // Pre filter out erroneous reads
+    if (!pre_filter(ks->seq.s))
+      continue;
 
-    // Get batch of reads
-    uint32_t i = 0;
-    do {
-      if (pre_filter(ks->seq.s)) {
-	reads[i].read = new std::string(ks->seq.s);
-	i++;
-      }
-    } while(i < group && kseq_read(ks) >= 0);
-
-    cout << number_completed << endl;
-    // What about doing it all backwards?
-    // seed selection
-    auto start = chrono::steady_clock::now();
-    get_seeds(reads, i);
-    auto end = chrono::steady_clock::now();
-    time_seeds += (end - start).count();
-
-    // location selection
-    start = chrono::steady_clock::now();
-    get_locations(reads, i);
-    end = chrono::steady_clock::now();
-    time_locations += (end - start).count();
-
-    // filtering
-    start = chrono::steady_clock::now();
-    filter_reads(reads, i);
-    end = chrono::steady_clock::now();
-    time_filter += (end - start).count();
-
-    // SWA
-    start = chrono::steady_clock::now();
-    if(do_swa)
-      finalize_read_locations(reads, i);
-    end = chrono::steady_clock::now();
-    time_swa += (end - start).count();
-
-    // free memory
-    free_read_memory(reads, i);
-    number_completed++;
+    // Map the read
+    map_read(ks->seq.s);
 
   } while (kseq_read(ks) >= 0);
 
 
-  cerr << "Done" << endl;
   cerr << "Timing: " << endl;
   cerr << "Seeds: " << time_seeds << endl;
   cerr << "Locations: " << time_locations << endl;
   cerr << "Filters: " << time_filter << endl;
   cerr << "SWA: " << time_swa << endl;
-  /*
-  //int wait;
-  //cin >> wait;
-  char benchFileName[80];
-  strcpy(benchFileName, reads_filename);
-  char* benchName = strtok(benchFileName, ".");
 
-  //ofstream output( (string(benchName) + "." + to_string(seedNum) + "-" + to_string(seedLength) + string(".hobbes")) , ofstream::out);
-
-  cout << "seedNum: " << number_of_seeds << " | seedLength: " << hashtable.get_seed_size() << endl;
-  //output << "seedNum: " << number_of_seeds << " | seedLength: " << hashtable.get_seed_size() << endl;
-  for (map<int, unsigned long long>::iterator iter = frequencyCounter.begin(); iter != frequencyCounter.end(); iter++)
-  cout << iter->first << " " << iter->second << endl;
-
-
-  //output.close();
-  */
+  // Free memory that was used.
   kseq_destroy(ks);
   gzclose(fp);
   free(genome);
-  free(genome_char);
+  //free(genome_char);
   hashtable.free_memory();
 
   return 0;
 }
 
-void get_seeds(ReadInformation * reads, uint32_t number_of_reads) {
-  for (uint32_t i = 0; i < number_of_reads; i++) {
+// Maps a single read.
+void map_read(string read) {
 
-    int frequency = solver->solveDNA(*(reads[i].read), reads[i].seeds);
-    reads[i].frequency = frequency;
-  }
+  // Get the reverse read to map as well.
+  string reverse = reverse_read(read);
+
+  // seed selection
+  auto start = chrono::steady_clock::now();
+  uint8_t seeds[number_of_seeds];
+  uint8_t reverse_seeds[number_of_seeds];
+  solver->solveDNA(read, seeds);
+  solver->solveDNA(reverse, reverse_seeds);
+  auto end = chrono::steady_clock::now();
+  time_seeds += (end - start).count();
+
+  // location selection
+  start = chrono::steady_clock::now();
+  // Keep locations on the stack unless I have to move them.
+  set<uint32_t> locations;
+  set<uint32_t> reverse_locations;
+  get_locations(&read, seeds, &locations);
+  get_locations(&reverse, reverse_seeds, &reverse_locations);
+  end = chrono::steady_clock::now();
+  time_locations += (end - start).count();
+
+  // filtering and SWA
+
+  cout << read << "\n";
+  start = chrono::steady_clock::now();
+  filter_and_finalize_reads(&read, &locations);
+  cout << "Reverse:" << "\n";
+  filter_and_finalize_reads(&reverse, &reverse_locations);
+  end = chrono::steady_clock::now();
+  time_filter += (end - start).count();
 }
 
-void get_locations(ReadInformation * reads, uint32_t number_of_reads) {
+// Reverses and inverts the string. O(N) complexity.
+string reverse_read(string read) {
+  string reverse = read;
+  for (uint32_t i = 0; i < read_length; i++) {
+    reverse[read_length-1-i] = reverse_values[char_values[read[i]] ^ 0x03];
+  }
+  return reverse;
+}
+
+// Uses one of the seed solvers to get the seeds
+void get_seeds(string * read, uint8_t * seeds) {
+  solver->solveDNA(*read, seeds);
+}
+
+// Uses the seeds found using the seed selection step
+// Gets all of the locations, puts into a set (no duplicates)
+void get_locations(string * read, uint8_t * seeds, set<uint32_t> * locations) {
   // Set up variables
-  uint32_t * locations;
-  uint8_t * seeds;
-  uint32_t index;
   uint32_t seed;
   uint32_t hash;
   uint32_t offset;
   uint32_t frequency;
   uint32_t location;
 
-  // Loop through every read
-  for(uint32_t i = 0; i < number_of_reads; i++) {
-    reads[i].locations = (uint32_t *)malloc(sizeof(uint32_t) * reads[i].frequency);
-    locations = reads[i].locations;
-    seeds = reads[i].seeds;
-    std::string read_string = *(reads[i].read);
-    index = 0;
+  // Loop through every seed
+  for(uint32_t j = 0; j < number_of_seeds; j++) {
+    seed = seeds[j];
+    hash = hashtable.get_hash(&((*read)[seed]));
+    offset = hashtable.get_offset(hash);
+    frequency = hashtable.get_frequency(hash);
 
-    // Loop through every seed
-    for(uint32_t j = 0; j < number_of_seeds; j++) {
-      seed = seeds[j];
-      hash = hashtable.get_hash(&read_string[seed]);
-      offset = hashtable.get_offset(hash);
-      frequency = hashtable.get_frequency(hash);
-
-      for (uint32_t k = 0; k < frequency; k++) {
-	// Subtract seed position to make sure locations start at beginning of read
-	location = hashtable.get_location(offset+k);
-	locations[index] = location - seed;
-	index++;
-      }
+    // Find all locations for a seed
+    for (uint32_t k = 0; k < frequency; k++) {
+      location = hashtable.get_location(offset+k);
+      // Subtract seed position to make sure locations start at beginning of read
+      locations->insert(location - seed);
     }
   }
 }
 
-void filter_reads(ReadInformation * reads, uint32_t number_of_reads) {
+// Filters and finalizes the reads using the specified filters, SWA implementations
+void filter_and_finalize_reads(string * read, set<uint32_t> * locations) {
   char reference[read_length];
   // Implement filters, based on flags set.
-  uint32_t * locations;
-  for(uint32_t i = 0; i < number_of_reads; i++) {
-    locations = reads[i].locations;
-    //cout << reads[i].frequency << endl;
-    for (uint32_t j = 0; j < reads[i].frequency; j++) {
-      // filter. If something does not pass the filter, 
-      // then make the location 0, decrement frequency.
-      decompress_2bit_dna(reference, locations[j]);
-      //cout << "\t" << locations[j] << "\n";
-      //cout << "\t" << reference << "\n";
-      //cout << "\t" << *(reads[i].read) << "\n\n";
-      if(!shd_filter.filter(reads[i].read->c_str(), reference, error_threshold, read_length)){
-	locations[j] = 0;
-	reads[i].frequency--;
+  for (set<uint32_t>::iterator it=locations->begin(); it != locations->end(); ++it) {
+    // Get the reference DNA from the genome
+    decompress_2bit_dna(reference, *it);
+    // Filter
+    bool pass_filter = shd_filter.filter(read->c_str(), reference, error_threshold, read_length);
+    if (pass_filter) {
+      // SWA
+      bool pass_swa = finalize_read_locations(read, reference);
+      if (pass_swa) {
+	cout << *it << " ";
       }
-
     }
   }
+  cout << "\n";
 }
 
-// Returns false if read is
+// Returns false if read contains too many N's
 bool pre_filter(string read) {
   int count = 0;
   for(uint32_t i = 0; i < read_length; i++) {
@@ -267,111 +242,54 @@ bool pre_filter(string read) {
   return true;
 }
 
-void NoSWA(ReadInformation * reads, uint32_t number_of_reads) {
-  char reference[read_length];
-  uint32_t * locations;
-  uint32_t index;
-  for (uint32_t i = 0; i < number_of_reads; i++) {
-    locations = reads[i].locations;
-    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
-    index = 0;
-    for (uint32_t j = 0; j < reads[i].frequency; j++) {
-      while (!locations[index]) { index++; }
-      decompress_2bit_dna(reference, locations[index]);
-      cout << locations[index] << " ";
-      index++;
-    }
-    cout << "\n";
-  }
+// No SWA alignment
+bool NoSWA(string * read, char * reference) {
+  return true;
 }
 
-void SWA_Seqalign(ReadInformation * reads, uint32_t number_of_reads) {
-  char reference[read_length];
-  uint32_t * locations;
-  uint32_t index;
-  for (uint32_t i = 0; i < number_of_reads; i++) {
-    locations = reads[i].locations;
-    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
-    index = 0;
-    for (uint32_t j = 0; j < reads[i].frequency; j++) {
-      while (!locations[index]) { index++; }
-      decompress_2bit_dna(reference, locations[index]);
-      if (swaligner.sw_align(reads[i].read->c_str(), reference, swa_threshold))
-	cout << locations[index] << " ";
-      index++;
-    }
-    cout << "\n";
-  }
+// Aligns using seqalign
+bool SWA_Seqalign(string * read, char * reference) {
+  return swaligner.sw_align(read->c_str(), reference, swa_threshold);
 }
 
-void Meyers_Edlib(ReadInformation * reads, uint32_t number_of_reads) {
-  char reference[read_length];
-  uint32_t * locations;
-  uint32_t index;
-  for (uint32_t i = 0; i < number_of_reads; i++) {
-    locations = reads[i].locations;
-    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
-    index = 0;
-    for (uint32_t j = 0; j < reads[i].frequency; j++) {
-      while (!locations[index]) { 
-	index++;
-      }
-      decompress_2bit_dna(reference, locations[index]);
-      EdlibAlignResult result = edlibAlign(reads[i].read->c_str(), read_length, reference, read_length, edlibNewAlignConfig(error_threshold, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0));
-      if (result.editDistance != -1 ){
-	cout << locations[index] << " ";
-      }
-      edlibFreeAlignResult(result);
-      index++;
-    }
-    cout << "\n";
+// Aligns using edlib
+// This can be optimized further.
+bool Meyers_Edlib(string * read, char * reference) {
+  bool res = false;
+  EdlibAlignResult result = edlibAlign(read->c_str(), read_length, reference, read_length, edlibNewAlignConfig(error_threshold, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0));
+  if (result.editDistance != -1 ){
+    res = true;
   }
+  edlibFreeAlignResult(result);
+  return res;
 }
 
-void convert_read(string read, unsigned char * destination, uint32_t read_length) {
+// Converts the read from ACTG to 0 1 2 3
+void convert_for_opal(string read, unsigned char * destination, uint32_t read_length) {
   for (uint32_t i = 0; i < read_length; i++) {
     destination[i] = (unsigned char)char_values[read[i]];
   }
 }
 
-void Opal(ReadInformation * reads, uint32_t number_of_reads) {
+// Aligns using opal
+bool Opal(string * read, char * reference) {
   // Need a function to convert read to 0,1,2,3
   // Need a function to convert the reference to 0,1,2,3 (unsigned char)
-  int reference_length = 0;
-  unsigned char read[read_length];
-  uint32_t * locations;
-  uint32_t index;
-  for (uint32_t i = 0; i < number_of_reads; i++) {
-    unsigned char ** reference = (unsigned char **)malloc(reads[i].frequency * sizeof(unsigned char *));
-    int * reference_lengths = (int*)malloc(reads[i].frequency * sizeof(int));
-    locations = reads[i].locations;
-    cout << *(reads[i].read) << " " << reads[i].frequency << "\n";
-    index = 0;
+  unsigned char rd[read_length];
+  unsigned char rf[read_length];
+  unsigned char * ref[1];
+  int reference_lengths[1];
+  reference_lengths[0] = read_length;
+  int reference_length = 1;
 
-    convert_read(*(reads[i].read), read, read_length);
-    reference_length = reads[i].frequency;
+  convert_for_opal(*read, rd, read_length);
+  convert_for_opal(reference, rf, read_length);
+  ref[0] = rf;
 
-    for (uint32_t j = 0; j < reads[i].frequency; j++) {
-      while (!locations[index]) { index++; }
-      //decompress_2bit_dna(reference, locations[index]);
-      reference[j] = genome_char + locations[index];
-      reference_lengths[j] = read_length;
-      index++;
-    }
-    opal_aligner.opal_swa(read, read_length, reference, reference_length, reference_lengths);
-    free(reference);
-    free(reference_lengths);
-  }
+  return opal_aligner.opal_swa(rd, read_length, ref, reference_length, reference_lengths);
 }
 
-// Read up: see if this is strictly necessary.
-void free_read_memory(ReadInformation * reads, uint32_t number_of_reads) {
-  for (uint32_t i = 0; i < number_of_reads; i++) {
-    free(reads[i].locations);
-    free(reads[i].read);
-  }
-}
-
+// Read the genome into 8 bit representation, using 0 1 2 3 instead of ACTG
 void read_genome_char() {
   // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 5 => 0x6000000)
   // WRONG! FIX ME.
@@ -408,6 +326,7 @@ void read_genome_char() {
   fasta.close();
 }
 
+// Read the genome into 2bit representation
 void read_genome_2bit() {
   // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 5 => 0x6000000)
   // WRONG! FIX ME.
@@ -445,6 +364,7 @@ void read_genome_2bit() {
   fasta.close();
 }
 
+// Decompresses the DNA back into ACTG characters
 void decompress_2bit_dna(char * destination, uint32_t starting_index) {
   for (uint32_t i = 0; i < read_length; i++) {
     uint64_t dna = genome[(starting_index+i)>>5];
@@ -452,3 +372,13 @@ void decompress_2bit_dna(char * destination, uint32_t starting_index) {
     destination[i] = reverse_values[char_code];
   }
 }
+
+// Decompresses the DNA into characters containing 0, 1, 2, 3 (uint8, not char).
+void decompress_2bit_dna_number(char * destination, uint32_t starting_index) {
+  for (uint32_t i = 0; i < read_length; i++) {
+    uint64_t dna = genome[(starting_index+i)>>5];
+    uint8_t char_code = (dna >> (2*((starting_index + i)%32))) & 0x03;
+    destination[i] = char_code;
+  }
+}
+

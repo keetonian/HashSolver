@@ -40,7 +40,7 @@ class OpalAligner {
     //unsigned char * opal_swa_char(unsigned char * query, int query_length, 
     //unsigned char ** db, int db_length, int * db_seq_lengths);
 
-    unsigned char * opal_swa(unsigned char * query, int query_length, 
+    bool opal_swa(unsigned char * query, int query_length, 
 	unsigned char ** db, int db_length, int * db_seq_lengths);
 };
 #endif // OPAL_ALIGNER_H_

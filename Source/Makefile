@@ -1,5 +1,5 @@
 CXX=g++
-CFLAGS=-std=c++14 -O2 -Wall -g -Wextra
+CFLAGS=-std=c++14 -O2 -Wall -g -Wextra -Wno-char-subscripts
 DFLAGS=-DUSE_DEBUGGING_OUTPUT -DUSE_MULTITHREADING
 LIBRARIES=./lib
 TBB=$(LIBRARIES)/tbb/build/linux_intel64_gcc_cc6.3.0_libc2.24_kernel4.10.0_release

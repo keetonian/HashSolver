@@ -2,6 +2,7 @@
 #define L1_MAPPER_H_
 
 #include <stdint.h>
+#include <set>
 #include "l1_hashtable.hpp"
 #include "seed_solver.hpp"
 #include "sw_aligner.hpp"
@@ -9,14 +10,8 @@
 #include "opal_aligner.hpp"
 #include "mapper_common.hpp"
 
-typedef struct {
-  uint32_t frequency;
-  uint8_t * seeds;
-  std::string * read;
-  uint32_t * locations;
-} ReadInformation;
-
-typedef void (*Finalize_Reads) (ReadInformation * reads, uint32_t number_of_reads);
+typedef bool (*Finalize_Reads) (std::string * read, char * reference);
+typedef bool (*Filter_Reads) (std::string * read, char * reference);
 
 char* reads_filename = 0;
 char* directory_name = 0;
@@ -32,6 +27,7 @@ uint64_t * genome;
 unsigned char * genome_char;
 uint32_t read_length;
 bool do_swa;
+double time_seeds, time_locations, time_filter, time_swa;
 
 SWAFunction swa_function;
 SeedSelection seed_selection;
@@ -43,24 +39,27 @@ SHDFilter shd_filter;
 OpalAligner opal_aligner;
 
 Finalize_Reads finalize_read_locations = NULL;
+Filter_Reads filter_read_locations = NULL;
 
-void get_seeds(ReadInformation * reads, uint32_t number_of_reads);
+void map_read(std::string read);
 
-void get_locations(ReadInformation * reads, uint32_t number_of_reads);
+void get_seeds(std::string * read, uint8_t * seeds);
 
-void free_read_memory(ReadInformation * reads, uint32_t number_of_reads);
+void get_locations(std::string * read, uint8_t * seeds, std::set<uint32_t> * locations);
 
-void filter_reads(ReadInformation * reads, uint32_t number_of_reads);
+void filter_and_finalize_reads(std::string * reads, std::set<uint32_t> * locations);
 
 bool pre_filter(string read);
 
-void NoSWA(ReadInformation * reads, uint32_t number_of_reads);
-void SWA_Seqalign(ReadInformation * reads, uint32_t number_of_reads);
-void Meyers_Edlib(ReadInformation * reads, uint32_t number_of_reads);
-void Opal(ReadInformation * reads, uint32_t number_of_reads);
+std::string reverse_read(std::string read);
+
+bool NoSWA(std::string * read, char * reference);
+bool SWA_Seqalign(std::string * read, char * reference);
+bool Meyers_Edlib(std::string * read, char * reference);
+bool Opal(std::string * read, char * reference);
 
 void decompress_2bit_dna(char * destination, uint32_t starting_index);
-void convert_read(std::string read, unsigned char * destination, uint32_t read_length);
+void convert_for_opal(std::string read, unsigned char * destination, uint32_t read_length);
 
 void read_genome_2bit();
 

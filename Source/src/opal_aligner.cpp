@@ -10,9 +10,9 @@
 
 
 
-unsigned char * OpalAligner::opal_swa(unsigned char * query, int query_length, unsigned char ** db, int db_length, int * db_seq_lengths) {
-  double cpuTime = 0;
+bool OpalAligner::opal_swa(unsigned char * query, int query_length, unsigned char ** db, int db_length, int * db_seq_lengths) {
   // ----------------------------- MAIN CALCULATION ----------------------------- //
+  bool retval = false;
   OpalSearchResult** results = new OpalSearchResult*[db_length];
   for (int i = 0; i < db_length; i++) {
     results[i] = new OpalSearchResult;
@@ -22,14 +22,13 @@ unsigned char * OpalAligner::opal_swa(unsigned char * query, int query_length, u
       gap_open, gap_extend, score_matrix, alphabet_length,
       results, search_type, mode_code, overflow_method);
   if (resultCode) {
-    printf("\nDatabase search failed with error code: %d\n", resultCode);
+    printf("\nOpal database search failed with error code: %d\n", resultCode);
   }
 
   for (int i = 0; i < db_length; i++) {
     if (results[i]->score > 94)
-      printf("#%d: %d ", i, results[i]->score);
+      retval = true;
   }
-  printf("\n");
 
   for (int i = 0; i < db_length; i++) {
     if (results[i]->alignment) {
@@ -38,6 +37,6 @@ unsigned char * OpalAligner::opal_swa(unsigned char * query, int query_length, u
     delete (results[i]);
   }
   delete[] results;
-  return 0;
+  return retval;
 }
 
