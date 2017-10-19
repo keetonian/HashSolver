@@ -1,4 +1,4 @@
-LIBRARIES= tbb seq-align bwa Shifted-Hamming-Distance edlib opal/src Complete-Striped-Smith-Waterman-Library/src
+LIBRARIES= tbb seq-align bwa SHD edlib opal/src Complete-Striped-Smith-Waterman-Library/src
 
 #edlib requires cmake.
 

@@ -4,15 +4,9 @@
 [submodule "Source/lib/seq-align"]
 	path = Source/lib/seq-align
 	url = https://github.com/noporpoise/seq-align
-[submodule "Source/lib/Shifted-Hamming-Distance"]
-	path = Source/lib/Shifted-Hamming-Distance
-	url = https://github.com/CMU-SAFARI/Shifted-Hamming-Distance
 [submodule "Source/lib/edlib"]
 	path = Source/lib/edlib
 	url = https://github.com/Martinsos/edlib
-[submodule "Source/lib/MAGNET"]
-	path = Source/lib/MAGNET
-	url = https://github.com/BilkentCompGen/MAGNET
 [submodule "Source/lib/opal"]
 	path = Source/lib/opal
 	url = http://github.com/Martinsos/opal
