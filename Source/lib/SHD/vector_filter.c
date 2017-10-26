@@ -390,6 +390,9 @@ int bit_vec_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
 uint8_t MAGNET_MASK[16] __aligned__ = { 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0xe0, 0xff, 0xff, 0xff };
 
+uint8_t MAGNET_MASK_2[16] __aligned__ = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0xff, 0xff, 0xff };
+
 uint8_t ALL_BITS_SET[16] __aligned__ = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -472,13 +475,13 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
   temp_diff_XMM = _mm_or_si128(result_XMM, result_XMM);
 
   // Load magnet mask into temp_mask register
-  temp_mask = _mm_load_si128( (__m128i *) MAGNET_MASK);
+  temp_mask = _mm_load_si128( (__m128i *) MAGNET_MASK_2);
   int i = 0, k = 0, res = 0;
 
   // Prepare bit vectors by shifting over 1, setting first and last bits.
   for (j = 0; j < num_vectors; j++) {
     //print128_bit(diff_XMM[j]);
-    diff_XMM[j] = _mm_or_si128(temp_mask, shift_right_sse1(diff_XMM[j], 1));
+    diff_XMM[j] = _mm_or_si128(temp_mask, diff_XMM[j]);
     //print128_bit(diff_XMM[j]);
   }
 
@@ -486,12 +489,17 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
     // Find longest subsequence of 0's
     longest_subsequence = 0;
     for ( k = 0; k < num_vectors; k++ ) {
-      temp_shift_XMM = _mm_or_si128(shift_right_sse1(diff_XMM[k], 1), diff_XMM[k]);
+      // Shifting right works better with AND operations on the inverse,
+      // Shiftling left works better with OR operations
+      // Flip all the bits
+      temp_shift_XMM = _mm_xor_si128(diff_XMM[k], temp_diff_XMM);
+      //temp_shift_XMM = _mm_or_si128(shift_right_sse1(diff_XMM[k], 1), diff_XMM[k]);
       //print128_bit(temp_shift_XMM);
-      int subsequence = 1;
-      while(!_mm_test_all_ones(temp_shift_XMM)) {
+      int subsequence = 0;
+      // DO BINARY SEARCH
+      while(!_mm_test_all_zeros(temp_shift_XMM, temp_diff_XMM)) {
 	// Shift until true.
-	temp_shift_XMM = _mm_or_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+	temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
 	subsequence++;
 	//printf("S: %d\n", subsequence);
 	//print128_bit(temp_shift_XMM);
@@ -507,31 +515,43 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
     //printf("Mask: \t");
     //print128_bit(diff_XMM[index_of_mask]);
     // Create mask for subsequence
-    temp_shift_XMM = _mm_or_si128(shift_right_sse1(diff_XMM[index_of_mask], 1), diff_XMM[index_of_mask]);
+    // USE BINARY METHOD
+
+    // Invert bits
+    temp_shift_XMM = _mm_xor_si128(diff_XMM[index_of_mask], temp_diff_XMM);
     // Want the last 0 to stay, not be overwritten to 1.
-    for (k = 1; k < longest_subsequence-1; k++) {
-      temp_shift_XMM = _mm_or_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+    for (k = 0; k < longest_subsequence-1; k++) {
+      temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
     }
+    //print128_bit(temp_shift_XMM);
     for(k = 1; k < longest_subsequence; k++) {
-      temp_shift_XMM = _mm_and_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
-      // Make sure rightmost bits are still all set
-      temp_shift_XMM = _mm_or_si128(temp_shift_XMM, temp_mask);
+      temp_shift_XMM = _mm_or_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
     }
+    //print128_bit(temp_shift_XMM);
+
+    // Invert back to normal
+    temp_shift_XMM = _mm_xor_si128(temp_shift_XMM, temp_diff_XMM);
+    //print128_bit(diff_XMM[index_of_mask]);
+    //print128_bit(temp_shift_XMM);
 
     // Update result
     result_XMM = _mm_and_si128(temp_shift_XMM, result_XMM);
 
     // Set bits around longest subsequence to 0 as well
-    temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
-    temp_shift_XMM = _mm_and_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
-    // Make sure rightmost bits (and leftmost bit) are still set.
-    temp_shift_XMM = _mm_or_si128(temp_shift_XMM, temp_mask);
-    // XOR to flip all bits
     temp_shift_XMM = _mm_xor_si128(temp_shift_XMM, temp_diff_XMM);
+    temp_shift_XMM = _mm_or_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+    temp_shift_XMM = _mm_or_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+    // Make sure rightmost bits (and leftmost bit) are still set.
+    //temp_shift_XMM = _mm_or_si128(temp_shift_XMM, temp_mask);
+    // XOR to flip all bits
+    //print128_bit(temp_shift_XMM);
 
     // Set bits for longest subsequence in all other masks high
-    for (k = 1; k < num_vectors; k++) {
+    for (k = 0; k < num_vectors; k++) {
+      //print128_bit(diff_XMM[k]);
       diff_XMM[k] = _mm_or_si128(temp_shift_XMM, diff_XMM[k]);
+      //print128_bit(diff_XMM[k]);
+      //printf("\n");
     }
   }
 
@@ -637,13 +657,13 @@ int bit_magnet_bin_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint
   temp_diff_XMM = _mm_or_si128(result_XMM, result_XMM);
 
   // Load magnet mask into temp_mask register
-  temp_mask = _mm_load_si128( (__m128i *) MAGNET_MASK);
+  temp_mask = _mm_load_si128( (__m128i *) MAGNET_MASK_2);
   int i = 0, k = 0, res = 0;
 
   // Prepare bit vectors by shifting over 1, setting first and last bits.
   for (j = 0; j < num_vectors; j++) {
     //print128_bit(diff_XMM[j]);
-    diff_XMM[j] = _mm_or_si128(temp_mask, shift_right_sse1(diff_XMM[j], 1));
+    diff_XMM[j] = _mm_or_si128(temp_mask, diff_XMM[j]);
     //print128_bit(diff_XMM[j]);
   }
 
@@ -651,13 +671,17 @@ int bit_magnet_bin_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint
     // Find longest subsequence of 0's
     longest_subsequence = 0;
     for ( k = 0; k < num_vectors; k++ ) {
-      temp_shift_XMM = _mm_or_si128(shift_right_sse1(diff_XMM[k], 1), diff_XMM[k]);
+      // Shifting right works better with AND operations on the inverse,
+      // Shiftling left works better with OR operations
+      // Flip all the bits
+      temp_shift_XMM = _mm_xor_si128(diff_XMM[k], temp_diff_XMM);
+      //temp_shift_XMM = _mm_or_si128(shift_right_sse1(diff_XMM[k], 1), diff_XMM[k]);
       //print128_bit(temp_shift_XMM);
-      int subsequence = 1;
+      int subsequence = 0;
       // DO BINARY SEARCH
-      while(!_mm_test_all_ones(temp_shift_XMM)) {
+      while(!_mm_test_all_zeros(temp_shift_XMM, temp_diff_XMM)) {
 	// Shift until true.
-	temp_shift_XMM = _mm_or_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+	temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
 	subsequence++;
 	//printf("S: %d\n", subsequence);
 	//print128_bit(temp_shift_XMM);
@@ -674,31 +698,42 @@ int bit_magnet_bin_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint
     //print128_bit(diff_XMM[index_of_mask]);
     // Create mask for subsequence
     // USE BINARY METHOD
-    temp_shift_XMM = _mm_or_si128(shift_right_sse1(diff_XMM[index_of_mask], 1), diff_XMM[index_of_mask]);
+
+    // Invert bits
+    temp_shift_XMM = _mm_xor_si128(diff_XMM[index_of_mask], temp_diff_XMM);
     // Want the last 0 to stay, not be overwritten to 1.
-    for (k = 1; k < longest_subsequence-1; k++) {
-      temp_shift_XMM = _mm_or_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+    for (k = 0; k < longest_subsequence-1; k++) {
+      temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
     }
+    //print128_bit(temp_shift_XMM);
     for(k = 1; k < longest_subsequence; k++) {
-      temp_shift_XMM = _mm_and_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
-      // Make sure rightmost bits are still all set
-      temp_shift_XMM = _mm_or_si128(temp_shift_XMM, temp_mask);
+      temp_shift_XMM = _mm_or_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
     }
+    //print128_bit(temp_shift_XMM);
+
+    // Invert back to normal
+    temp_shift_XMM = _mm_xor_si128(temp_shift_XMM, temp_diff_XMM);
+    //print128_bit(diff_XMM[index_of_mask]);
+    //print128_bit(temp_shift_XMM);
 
     // Update result
     result_XMM = _mm_and_si128(temp_shift_XMM, result_XMM);
 
     // Set bits around longest subsequence to 0 as well
-    temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
-    temp_shift_XMM = _mm_and_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
-    // Make sure rightmost bits (and leftmost bit) are still set.
-    temp_shift_XMM = _mm_or_si128(temp_shift_XMM, temp_mask);
-    // XOR to flip all bits
     temp_shift_XMM = _mm_xor_si128(temp_shift_XMM, temp_diff_XMM);
+    temp_shift_XMM = _mm_or_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+    temp_shift_XMM = _mm_or_si128(shift_left_sse1(temp_shift_XMM, 1), temp_shift_XMM);
+    // Make sure rightmost bits (and leftmost bit) are still set.
+    //temp_shift_XMM = _mm_or_si128(temp_shift_XMM, temp_mask);
+    // XOR to flip all bits
+    //print128_bit(temp_shift_XMM);
 
     // Set bits for longest subsequence in all other masks high
-    for (k = 1; k < num_vectors; k++) {
+    for (k = 0; k < num_vectors; k++) {
+      //print128_bit(diff_XMM[k]);
       diff_XMM[k] = _mm_or_si128(temp_shift_XMM, diff_XMM[k]);
+      //print128_bit(diff_XMM[k]);
+      //printf("\n");
     }
   }
 
@@ -910,6 +945,23 @@ uint8_t read_vec0_t[SSE_BYTE_NUM] __aligned__;
 uint8_t read_vec1_t[SSE_BYTE_NUM] __aligned__;
 uint8_t ref_vec0_t[SSE_BYTE_NUM] __aligned__;
 uint8_t ref_vec1_t[SSE_BYTE_NUM] __aligned__;
+
+int bit_magnet_bin_filter_sse1(char* read, char* ref, int length, int max_error) {
+  //Get ready the bits
+  sse3_convert2bit1(read, read_vec0_t, read_vec1_t);
+  sse3_convert2bit1(ref, ref_vec0_t, ref_vec1_t);
+
+  //Get the mask
+  __m128i mask;
+  if (length >= SSE_BASE_NUM1)
+    mask = _mm_set1_epi8(0xff);
+  else
+    mask = _mm_load_si128( (__m128i *) (MASK_SSE_END1 + (length *
+	    SSE_BYTE_NUM)));
+
+  return bit_magnet_bin_filter_m128_sse1(read_vec0_t, read_vec1_t,
+      ref_vec0_t, ref_vec1_t, mask, max_error);
+}
 
 int bit_magnet_filter_sse1(char* read, char* ref, int length, int max_error) {
   //Get ready the bits

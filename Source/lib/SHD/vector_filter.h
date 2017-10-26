@@ -32,6 +32,8 @@ int bit_vec_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t *re
 											uint8_t *ref_vec1, __m128i mask, int max_error);
 int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t *ref_vec0,
 											uint8_t *ref_vec1, __m128i mask, int max_error);
+int bit_magnet_bin_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t *ref_vec0,
+											uint8_t *ref_vec1, __m128i mask, int max_error);
 
 int bit_vec_filter_sse11(char* read, char* ref, int length, int max_error);
 int bit_vec_filter_m128_sse11(uint8_t *read_vec, uint8_t *ref_vec, int length, int max_error);
