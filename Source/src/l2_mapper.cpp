@@ -11,7 +11,7 @@
 #include <map>
 #include "kseq.h"
 #include "mapper_commandline.hpp"
-#include "l1_mapper.hpp"
+#include "l2_mapper.hpp"
 #include "l1_hobbes_solver.hpp"
 #include "l1_basic_solver.hpp"
 #include "seed_solver.hpp"
@@ -37,6 +37,7 @@ int main(int argc, char** argv) {
 
   // Load hash table
   hashtable.read_from_file(hashtable_filename);
+  l2hashtable.l2_read_from_file(hashtable_filename);
 
   // Load genome
   read_genome_2bit();
@@ -136,7 +137,6 @@ int main(int argc, char** argv) {
   cerr << "Locations: " << time_locations << endl;
   cerr << "Filters: " << time_filter << endl;
   cerr << "SWA: " << time_swa << endl;
-  cerr << "Total" << time_seeds + time_locations + time_filter + time_swa << endl;
 
   // Free memory that was used.
   kseq_destroy(ks);
@@ -203,21 +203,57 @@ void get_locations(string * read, uint8_t * seeds, set<uint32_t> * locations) {
   uint32_t hash;
   uint32_t offset;
   uint32_t frequency;
+  uint64_t l2_offset;
+  uint32_t l2_frequency;
   uint32_t location;
+  uint32_t l2_seed_size = l2hashtable.l2_get_l2_seed_size();
+  const char * rd = read->c_str();
 
   // Loop through every seed
-  for(uint32_t j = 0; j < number_of_seeds; j++) {
-    seed = seeds[j];
+  for(uint32_t i = 0; i < number_of_seeds; i++) {
+    seed = seeds[i];
     hash = hashtable.get_hash(&((*read)[seed]));
     offset = hashtable.get_offset(hash);
     frequency = hashtable.get_frequency(hash);
-    //cout << frequency << endl;
 
-    // Find all locations for a seed
-    for (uint32_t k = 0; k < frequency; k++) {
-      location = hashtable.get_location(offset+k);
-      // Subtract seed position to make sure locations start at beginning of read
-      locations->insert(location - seed);
+    if ( frequency < l2hashtable.l2_get_threshold() ){
+      // Find all locations for a seed
+      for (uint32_t k = 0; k < frequency; k++) {
+	location = hashtable.get_location(offset+k);
+	// Subtract seed position to make sure locations start at beginning of read
+	locations->insert(location - seed);
+      }
+    }
+    else { // FIGURE OUT HOW MANY LOCATIONS L2 TABLE FILTERS
+      // 2nd level hash
+      int order_fix = 0;
+      if(number_of_seeds%2 == 0 && i >= number_of_seeds/2)
+	order_fix = 1;
+      int idx = (number_of_seeds%2 == 0) ? (number_of_seeds/2 - 1) : number_of_seeds / 2;
+      uint32_t j = 0;
+      uint32_t jj = 0;
+      // Elements before seed: i + order_fix
+      for (; j < i + order_fix; j++) {
+	uint8_t pearson = l2hashtable.pearsonHash(rd+seed-((j+1)*l2_seed_size));
+	hash = l2hashtable.l2_get_index(offset, i, j, pearson);
+	l2_offset = l2hashtable.l2_get_offset2(hash);
+	l2_frequency = l2hashtable.l2_get_frequency2(hash);
+	for (uint32_t l = 0; l < l2_frequency; l++) {
+	  location = l2hashtable.l2_get_location(l + l2_offset);
+	  locations->insert(location - seed);
+	}
+      }
+      // Elements after seed 6 - i - order_fix
+      for (j = 0; j < 6 -i - order_fix; j++) {
+	uint8_t pearson = l2hashtable.pearsonHash(rd+seed+hashtable.get_seed_size()+(j*l2_seed_size));
+	hash = l2hashtable.l2_get_index(offset, i, j, pearson);
+	l2_offset = l2hashtable.l2_get_offset2(hash);
+	l2_frequency = l2hashtable.l2_get_frequency2(hash);
+	for (uint32_t l = 0; l < l2_frequency; l++) {
+	  location = l2hashtable.l2_get_location(l + l2_offset);
+	  locations->insert(location-seed);
+	}
+      }
     }
   }
 }
@@ -377,6 +413,8 @@ void read_genome_2bit() {
   // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 5 => 0x6000000)
   // WRONG! FIX ME.
   genome = (uint64_t *)malloc(0x7000000*sizeof(uint64_t));
+  printf("Genome: %p-%p\n", genome, genome + 0x7000000);
+  printf("Char_to_2bit: %p-%p\n", char_values, char_values+128);
   string genome_filename = hashtable_filename;
   genome_filename += ".fasta";
   ifstream fasta(genome_filename.c_str());

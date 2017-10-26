@@ -190,9 +190,9 @@ void L2Hashtable::l2_write_hashtable_to_file(const char * name){
   }
 
   printf("Writing hashtable: total size is %zu\n", l2num_tables*l2table_size);
-  data = fwrite(l2hashtable, sizeof(uint32_t), l2num_tables*l2table_size, f);
+  data = fwrite(l2hashtable, sizeof(uint32_t), l2num_tables*l2table_size + 1, f);
   printf("Hashtable written.\n");
-  if(data != l2table_size * l2num_tables)
+  if(data != l2table_size * l2num_tables + 1)
     printf("Not enough room on disk. Elements written: %zu/%zu\n", data, l2table_size * l2num_tables);
   fclose(f);
 }
@@ -247,12 +247,13 @@ void L2Hashtable::l2_read_hashtable_from_file(const char * name){
     printf("Number of tables not read from file\n");
   l2_init_hashtable(size[0]);
 
-  data = fread(l2hashtable, sizeof(uint32_t), l2table_size * l2num_tables, f);
-  if(data != l2table_size * l2num_tables)
+  data = fread(l2hashtable, sizeof(uint32_t), l2table_size * l2num_tables + 1, f);
+  if(data != l2table_size * l2num_tables + 1)
     printf("Error: Unable to read l2 hashtable\n");
   //for(uint64_t i = 0; i < size[0]*l2table_size+1; i++) {
     //std::cout << l2hashtable[i] << std::endl;
   //}
+  printf("L2 Hashtable.offsets: %p-%p\n", l2hashtable, l2hashtable+l2table_size * l2num_tables + 1);
   fclose(f);
 }
 
@@ -271,6 +272,7 @@ void L2Hashtable::l2_read_locations_from_file(const char * name){
   data = fread(l2locations, sizeof(uint32_t), l2locations_size, f);
   if(data != l2locations_size)
     printf("Error: locations list not read\n");
+  printf("L2 Hashtable.locations: %p-%p\n", l2locations, l2locations + l2locations_size);
   fclose(f);
 }
 
@@ -290,6 +292,7 @@ void L2Hashtable::l2_read_overflow_from_file(const char * name){
   data = fread(l2overflow_values, sizeof(uint32_t), l2overflow_size, f);
   if(data != l2overflow_size)
     printf("Error: overflow list not read\n");
+  printf("L2 Hashtable.overflow: %p-%p\n", l2overflow_values, l2overflow_values + l2overflow_size);
   fclose(f);
 }
 

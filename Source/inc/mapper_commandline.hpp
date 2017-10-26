@@ -12,33 +12,30 @@ extern char* hashtable_filename;
 extern uint8_t filters;
 extern SeedSelection seed_selection;
 extern SWAFunction swa_function;
+extern FilterAlgorithm filter_algorithm;
 extern uint32_t number_of_seeds;
 extern uint32_t error_threshold;
 extern uint32_t limit;
-extern uint32_t group;
 extern bool do_swa;
 std::string version = "1.0";
 std::string default_directory = ".";
 
 const uint8_t PAIRED_END = 0x1;
-const uint8_t SHD = 0x2;
-const uint8_t QGRAM = 0x4;
 
 void print_options(){
   std::cout << "Usage: " << std::endl;
   std::cout << "-t  --hashtable\tPrefix for the desired L1 hashtable files" << std::endl;
-  std::cout << "-r  --reads\tPrefix for the read file" << std::endl;
+  std::cout << "-r  --reads\tName of read file" << std::endl;
   std::cout << "-c  --seeds\tNumber of seeds to use." << std::endl; 
   std::cout << "\t\t\tIf the number is above the maximum, then the maximum will be used." << std::endl;
   std::cout << "-l  --limit\tThe limit on how much space the seeds can be moved." << std::endl; 
   std::cout << "\t\t\tIf the number is greater than the maximum, then the maximum will be used." << std::endl;
   std::cout << "-e  --error\tPercent error" << std::endl;
-  std::cout << "-n  --seed-select\tChoose seed selection algorithm" << std::endl;
+  std::cout << "-s  --seed-select\tChoose seed selection algorithm" << std::endl;
   std::cout << "\t\t\t0: Naive." << std::endl;
   std::cout << "\t\t\t1: Hobbes." << std::endl;
   std::cout << "\t\t\t2: Optimal." << std::endl;
-  std::cout << "-p  --paired-end\tUse paired-end filtering" << std::endl;
-  std::cout << "-s  --shd\tUse shifted-hamming-distance filtering" << std::endl;
+  std::cout << "-p  --paired\tUse paired-end alignment (NOT IMPLEMENTED)" << std::endl;
   std::cout << "-x  --swa-option\tChoose what to do with the swa step." << std::endl;
   std::cout << "\t\t\t0: don't do SWA and don't print matches." << std::endl;
   std::cout << "\t\t\t1: pass all possible locations as matches." << std::endl;
@@ -46,8 +43,11 @@ void print_options(){
   std::cout << "\t\t\t3: use edlib's SWA implementation" << std::endl;
   std::cout << "\t\t\t4: use opal's SWA implementation" << std::endl;
   std::cout << "\t\t\t5: use Complete-Striped-Smith-Waterman-Library's SWA implementation" << std::endl;
-  std::cout << "-q  --qgram\tUse Q-gram filtering" << std::endl;
-  std::cout << "-g  --group\tProcess the reads in groups of n numbers." << std::endl;
+  std::cout << "-f  --filter\tSelect which additional filtering to use:" << std::endl;
+  std::cout << "\t\t\t0: No additional filtering" << std::endl;
+  std::cout << "\t\t\t1: Use SHD filtering" << std::endl;
+  std::cout << "\t\t\t2: Use MAGNET filtering" << std::endl;
+  std::cout << "\t\t\t3: Use Q-gram filtering (NOT IMPLEMENTED)" << std::endl;
   std::cout << "-d  --directory\tOutput to the specified directory." << std::endl;
   std::cout << "-h  --help\tPrint this message." << std::endl;
   std::cout << "-v  --version\tPrint the software version" << std::endl;
@@ -65,12 +65,10 @@ int parseCommands(int argc, char** argv){
     {"seeds",	    required_argument,  0,  'c'},
     {"limit",	    required_argument,  0,  'l'},
     {"error",	    required_argument,  0,  'e'},
-    {"seed-select", required_argument,  0,  'n'},
-    {"paired-end",  required_argument,	0,  'p'},
-    {"shd",	    required_argument,  0,  's'},
+    {"seed-select", required_argument,  0,  's'},
+    {"paired",	    required_argument,	0,  'p'},
     {"swa-option",  required_argument,  0,  'x'},
-    {"qgram",	    required_argument,  0,  'q'},
-    {"group",	    required_argument,  0,  'g'},
+    {"filter",	    required_argument,  0,  'f'},
     {"directory",   required_argument,  0,  'd'},
     {"help",	    no_argument,	0,  'h'},
     {"version",	    no_argument,	0,  'v'},
@@ -79,7 +77,6 @@ int parseCommands(int argc, char** argv){
 
   // Write to the current directory unless otherwise directed.
   directory_name = (char*)default_directory.c_str();
-  group = 1;
   do_swa = true;
   seed_selection = SeedSelection::hobbes;
   swa_function = SWAFunction::edlib;
@@ -87,7 +84,7 @@ int parseCommands(int argc, char** argv){
   // Check that only one seed selection algorithm is selected.
   // Load all options into variables.
   // Defaults: naive seed selection, no filters, write to std out.
-  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:g:x:n:psqd:vh", longOptions, &index)) != -1){
+  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:x:f:psqd:vh", longOptions, &index)) != -1){
     switch(c)
     {
       case 't':
@@ -107,13 +104,10 @@ int parseCommands(int argc, char** argv){
       case 'l':
 	limit = atoi(optarg);
 	break;
-      case 'g':
-	group = atoi(optarg);
-	break;
       case 'e':
 	error_threshold = atoi(optarg);
 	break;
-      case 'n':
+      case 's':
 	switch(atoi(optarg)){
 	  case 0: seed_selection = SeedSelection::naive;
 		  break;
@@ -125,9 +119,6 @@ int parseCommands(int argc, char** argv){
 	break;
       case 'p':
 	filters |= PAIRED_END;
-	break;
-      case 's':
-	filters |= SHD;
 	break;
       case 'x':
 	switch(atoi(optarg)) {
@@ -146,8 +137,17 @@ int parseCommands(int argc, char** argv){
 		  break;
 	}
 	break;
-      case 'q':
-	filters |= QGRAM;
+      case 'f':
+	switch(atoi(optarg)) {
+	  case 0: filter_algorithm = FilterAlgorithm::none;
+		  break;
+	  case 1: filter_algorithm = FilterAlgorithm::SHD;
+		  break;
+	  case 2: filter_algorithm = FilterAlgorithm::MAGNET;
+		  break;
+	  case 3: filter_algorithm = FilterAlgorithm::QGRAM;
+		  break;
+	}
 	break;
       case 'h':
 	print_options();

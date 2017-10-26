@@ -49,24 +49,24 @@ int main(int argc, char** argv){
   for(uint64_t i = 0; i < hashtable.get_table_size(); i++){
     if(i % (hashtable.get_table_size()>>4) == 0)
       cout << i << "/" << hashtable.get_table_size() << " verified" << endl;
+    //cout << hashtable.get_frequency(i) << endl;
     // Go over every element in the table
     if(l2hashtable.l2_get_threshold() != 0 && hashtable.get_frequency(i) >= l2hashtable.l2_get_threshold()){
       set<uint32_t> loc;
       uint32_t index_start = l2hashtable.l2_get_index(hashtable.get_offset(i),0,0,0);
-      uint32_t index_end = l2hashtable.l2_get_index(hashtable.get_offset(i),5,5,255);
+      uint32_t index_end = l2hashtable.l2_get_index(hashtable.get_offset(i)+1,0,0,0);
 
       uint64_t offset_start = l2hashtable.l2_get_offset2(index_start);
       uint64_t offset_end = l2hashtable.l2_get_offset2(index_end);
       //cout << l2hashtable.l2_get_offset2(index_start) << '\t' << l2hashtable.l2_get_offset2(index_end) << endl;
+      //cout << offset_end - offset_start << endl;
 
       if(offset_end < offset_start){
 	cout << "Problem with offsets" << endl;
       }
 
-      offset_end += l2hashtable.l2_get_frequency2(index_end);
-
       for(uint64_t j = offset_start; j < offset_end; j++){
-	//cout << j << endl;
+	//cout << j-offset_start << "/" << offset_end-offset_start << endl;
 	loc.insert(l2hashtable.l2_get_location(j));
       }
 

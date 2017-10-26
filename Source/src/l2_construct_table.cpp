@@ -238,6 +238,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   cout << "Elements in L2 hashing: " << big_buckets << endl;
   uint32_t l2seed_size = 10;
   uint32_t l1seed_size = 14;
+  uint64_t i = 0;
 
   // Repurpose table for 2nd level hashing.
   // i: 6
@@ -248,7 +249,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   size_t tsize = 6 * 6 * 256;
   vector<uint32_t> ** table = (vector<uint32_t> **)malloc(tsize * sizeof(vector<uint32_t> * ));
 
-  for(uint64_t i = 0; i < tsize; i++){
+  for(i = 0; i < tsize; i++){
     table[i] = 0;
   }
 
@@ -258,7 +259,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 
   cout << "Calculating hash tables for each seed" << endl;
   // Calculate hash tables for each location of each seed
-  for(uint32_t i = 0; i < buckets->size(); i++){
+  for(i = 0; i < buckets->size(); i++){
     if(i%(buckets->size()>>3) == 0){
       cout << (i) << "/" << buckets->size() << endl;
     }
@@ -363,17 +364,16 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
 	//cout << *it << endl;
       }
     }
-    if (i == buckets->size() - 1) {
-      l2hashtable.l2_set_offset(l2hashtable.l2_get_index(i+1, 0, 0, 0), l2temploc.size());
-    }
   }
+  // Set very last index.
+  l2hashtable.l2_set_offset(l2hashtable.l2_get_index(i, 0, 0, 0), l2temploc.size());
 
   // Calculate necessary location array size
   cout << "Location size: " << l2temploc.size() << endl;
 
   // Initialize l2 tables
   l2hashtable.l2_init_locations(l2temploc.size());
-  for(uint64_t i = 0; i < l2temploc.size(); i++){
+  for(i = 0; i < l2temploc.size(); i++){
     l2hashtable.l2_set_location(i, l2temploc.at(i));
     //cout << check_genome(l2temploc.at(i), genome) << "\n";
   }
@@ -382,7 +382,7 @@ void construct_l2_table(uint32_t big_buckets, vector<uint64_t> * buckets, vector
   uint32_t previous_value = 0;
   vector<uint32_t> overflow_values;
   cout << l2hashtable.l2_get_num_tables() << " " << buckets->size() << endl;
-  for (uint64_t i = 0; i < l2hashtable.l2_get_num_tables() * l2hashtable.l2_get_table_size() + 1; i++) {
+  for (i = 0; i < l2hashtable.l2_get_num_tables() * l2hashtable.l2_get_table_size() + 1; i++) {
     uint32_t current_value = l2hashtable.l2_get_offset2(i);
     if (current_value < previous_value)
       overflow_values.push_back(i);

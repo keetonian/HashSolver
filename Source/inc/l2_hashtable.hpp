@@ -18,7 +18,7 @@ class L2Hashtable{
 
   size_t l2overflow_size = 0;
   uint32_t * l2overflow_values = 0;
-  uint64_t L2_OVERFLOW = 0x100000000;
+  const static uint64_t L2_OVERFLOW = 0x100000000;
 
   public:
   L2Hashtable();

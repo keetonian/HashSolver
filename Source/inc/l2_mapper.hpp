@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <set>
 #include "l1_hashtable.hpp"
+#include "l2_hashtable.hpp"
 #include "seed_solver.hpp"
 #include "sw_aligner.hpp"
 #include "shd_filter.hpp"
@@ -34,6 +35,7 @@ FilterAlgorithm filter_algorithm;
 
 SeedSolver * solver;
 Hashtable hashtable;
+L2Hashtable l2hashtable;
 SWAligner swaligner;
 SHDFilter shd_filter;
 OpalAligner opal_aligner;

@@ -53,6 +53,7 @@ int main(int argc, char** argv){
       cout << i << "/" << hashtable.get_table_size() << " verified" << endl;
     // Go over every element in the table
     uint64_t offset = hashtable.get_offset(i);
+    //cout << hashtable.get_frequency(i) << endl;
     for(uint64_t j = offset; j < offset + hashtable.get_frequency(i); j++){
       if(get_seed(hashtable.get_location(j), &genome) != reverse_hash(i))
 	cerr << "L1 Table failure: " << '\t' << i << '\t' << reverse_hash(i) << '\t' << get_seed(hashtable.get_location(j), &genome) << endl;

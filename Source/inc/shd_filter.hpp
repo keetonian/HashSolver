@@ -11,5 +11,6 @@ class SHDFilter {
   public:
     SHDFilter();
     bool filter(const char * read, const char * ref, int error, int read_length);
+    bool magnet(const char * read, const char * ref, int error, int read_length);
 };
 #endif //SHD_FILTER_H_
