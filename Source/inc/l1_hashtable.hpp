@@ -28,6 +28,7 @@ class Hashtable{
 
     std::string get_name();
     uint64_t get_hash(const char * seed);
+    uint64_t get_hash(char c, uint64_t prev_hash);
 
     void set_seed_size(uint64_t seed);
     uint64_t get_seed_size();

@@ -1,4 +1,4 @@
-CXX=g++
+CXX=g++-6
 CFLAGS=-std=c++14 -O2 -Wall -g -Wextra -Wno-char-subscripts
 DFLAGS=-DUSE_DEBUGGING_OUTPUT -DUSE_MULTITHREADING
 LIBRARIES=./lib

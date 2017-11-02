@@ -1,3 +1,5 @@
+CXX=g++-6
+
 all:
 	cd Source/lib && make && cd .. && make && cd ..; \
 	cd bin; \

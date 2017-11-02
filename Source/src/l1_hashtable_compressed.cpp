@@ -31,9 +31,17 @@ uint64_t Hashtable::get_hash(const char * seed) {
   //printf("seed: %zu\n", seed_size);
   uint64_t i = 0;
   for(; i < seed_size; i++)
-    hash += (uint64_t)(char_values[(unsigned char)(seed[i])]) << (2ULL*((seed_size-i)-1));
+    hash |= (uint64_t)(char_values[(unsigned char)(seed[i])]) << (2ULL*((seed_size-i)-1));
   return hash;
 }
+
+uint64_t Hashtable::get_hash(char c, uint64_t prev_hash) {
+  prev_hash &= ~((uint64_t)0x3 << (2ULL * (seed_size-1) ) );
+  prev_hash = prev_hash << 2;
+  prev_hash |= (uint64_t)(char_values[(unsigned char)c]);
+  return prev_hash;
+}
+
 
 void Hashtable::set_seed_size(uint64_t seed) {
   seed_size = seed;

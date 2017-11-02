@@ -97,10 +97,16 @@ int HobbesSolver::solveDNA(string DNA, uint8_t * seeds) {
   assert(DNA.length() == readLength);
   reset();
 
+  uint64_t hash;
   for (int i = 0; i < readLength - seedLength + 1; i++) {
-    string seed = DNA.substr(i, seedLength);
-    uint64_t hash = hashtable->get_hash(seed.c_str());
-    invertedList[i] = hashtable->get_frequency(hash);
+    if (!i) {
+      string seed = DNA.substr(i, seedLength);
+      hash = hashtable->get_hash(seed.c_str());
+    }
+    else {
+      hash = hashtable->get_hash(DNA[i+seedLength-1], hash);
+    }
+    //invertedList[i] = hashtable->get_frequency(hash);
   }
 
   for (int counter = 1; counter < seedNum + 1; counter++) {
