@@ -83,32 +83,16 @@ int main(int argc, char** argv){
 
   uint64_t total_size = 0;
   for(uint64_t i = 0; i < table_size; i++){
-    if(table[i] != 0)
+    // Sort table internals
+    if(table[i] != 0){
+      std::sort(table[i]->begin(), table[i]->end());
       if(l2_threshold == 0 || table[i]->size() < l2_threshold)
 	total_size += table[i]->size();
-  }
-
-  cout << "Completed initial table construction" << endl;
-
-  cout << "initializing hashtable" << endl;
-  hashtable.initialize_hashtable();
-
-  cout << "initializing locations array" << endl;
-  hashtable.initialize_location(total_size);
-
-  cout << "populating hashtable and locations" << endl;
-  total_size = 0;
-  vector<uint64_t> buckets;
-  for(uint64_t i = 0; i < table_size; i++){
-    uint32_t frequency = table[i] == 0 ? 0 : table[i]->size();
-
-    hashtable.set_frequency(i, frequency);
-    hashtable.set_offset(i, total_size);
-    for(uint64_t j = 0; j < frequency; j++){
-      hashtable.set_location(j+total_size, table[i]->at(j));
     }
-    total_size += frequency;
   }
+
+  Hashtable::construct_table(&hashtable, total_size, table);
+
 
   cout << "Completed internal table and list construction." << endl;
   cout << "Writing table and list to file" << endl;

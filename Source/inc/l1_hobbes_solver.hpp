@@ -15,8 +15,9 @@ public:
 	void init(uint32_t readLength, uint32_t seedNum, uint32_t seedLength, uint32_t limit);
 	void reset();
 	int solveDNA(string DNA, uint8_t * seeds);
+	int solveDNA(std::string DNA, std::vector<uint32_t>&) {return 0;}
 	void print();
-	void loadHashTables(Hashtable* hashtable);
+	void loadTables(void * hashtable);
 	uint32_t get_seed_size();
 
 private:

@@ -9,6 +9,7 @@ using namespace std;
 extern char* reads_filename;
 extern char* directory_name;
 extern char* hashtable_filename;
+extern char* bwt_filename;
 extern uint8_t filters;
 extern SeedSelection seed_selection;
 extern SWAFunction swa_function;
@@ -25,6 +26,7 @@ const uint8_t PAIRED_END = 0x1;
 void print_options(){
   std::cout << "Usage: " << std::endl;
   std::cout << "-t  --hashtable\tPrefix for the desired L1 hashtable files" << std::endl;
+  std::cout << "-b  --bwt\tPrefix for the desired bwt files" << std::endl;
   std::cout << "-r  --reads\tName of read file" << std::endl;
   std::cout << "-c  --seeds\tNumber of seeds to use." << std::endl; 
   std::cout << "\t\t\tIf the number is above the maximum, then the maximum will be used." << std::endl;
@@ -35,6 +37,7 @@ void print_options(){
   std::cout << "\t\t\t0: Naive." << std::endl;
   std::cout << "\t\t\t1: Hobbes." << std::endl;
   std::cout << "\t\t\t2: Optimal." << std::endl;
+  std::cout << "\t\t\t2: Naive + FastHash." << std::endl;
   std::cout << "-p  --paired\tUse paired-end alignment (NOT IMPLEMENTED)" << std::endl;
   std::cout << "-x  --swa-option\tChoose what to do with the swa step." << std::endl;
   std::cout << "\t\t\t0: don't do SWA and don't print matches." << std::endl;
@@ -60,7 +63,8 @@ int parseCommands(int argc, char** argv){
 
   static struct option longOptions[] =
   {
-    {"hashtable",   required_argument,  0,  'h'},
+    {"hashtable",   required_argument,  0,  't'},
+    {"bwt",	    required_argument,  0,  'b'},
     {"reads",	    required_argument,  0,  'r'},
     {"seeds",	    required_argument,  0,  'c'},
     {"limit",	    required_argument,  0,  'l'},
@@ -84,12 +88,15 @@ int parseCommands(int argc, char** argv){
   // Check that only one seed selection algorithm is selected.
   // Load all options into variables.
   // Defaults: naive seed selection, no filters, write to std out.
-  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:x:f:psqd:vh", longOptions, &index)) != -1){
+  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:x:f:b:psqd:vh", longOptions, &index)) != -1){
     switch(c)
     {
       case 't':
 	hashtable_filename = optarg;
 	required--;
+	break;
+      case 'b':
+	bwt_filename = optarg;
 	break;
       case 'r':
 	reads_filename = optarg;
@@ -114,6 +121,8 @@ int parseCommands(int argc, char** argv){
 	  case 1: seed_selection = SeedSelection::hobbes;
 		  break;
 	  case 2: seed_selection = SeedSelection::optimal;
+		  break;
+	  case 3: seed_selection = SeedSelection::fasthash;
 		  break;
 	}
 	break;

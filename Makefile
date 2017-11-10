@@ -1,4 +1,4 @@
-CXX=g++-6
+CXX=g++-4.8
 
 all:
 	cd Source/lib && make && cd .. && make && cd ..; \

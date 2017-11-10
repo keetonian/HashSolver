@@ -613,7 +613,7 @@ int bit_magnet_bin_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint
   else if(max_error == 0)
     return 0;
 
-  //	printf("diff_XMM: \t");
+  	printf("diff_XMM: \t");
   //	print128_bit(diff_XMM);
 
   for (j = 1; j <= max_error; j++) {
@@ -678,14 +678,32 @@ int bit_magnet_bin_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint
       //temp_shift_XMM = _mm_or_si128(shift_right_sse1(diff_XMM[k], 1), diff_XMM[k]);
       //print128_bit(temp_shift_XMM);
       int subsequence = 0;
+      int shift_width = 1;
+      int all_zero = 0;
+      int max = 128;
       // DO BINARY SEARCH
-      while(!_mm_test_all_zeros(temp_shift_XMM, temp_diff_XMM)) {
+      while(max-subsequence>1 /*&& max > longest_subsequence*/) {
+	// Store previous result.
+	shift_XMM = _mm_or_si128(temp_shift_XMM, temp_shift_XMM);
 	// Shift until true.
-	temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
-	subsequence++;
+	temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, shift_width), temp_shift_XMM);
+	if(_mm_test_all_zeros(temp_shift_XMM, temp_diff_XMM)){
+	  temp_shift_XMM = _mm_or_si128(shift_XMM, shift_XMM);
+	  max = subsequence + shift_width;
+	  shift_width = shift_width>>1;
+	  printf("%d\n", shift_width);
+	  continue;
+	}
+	//printf("max: %d/%d\n", max, subsequence);
+
+	subsequence += shift_width;
+	shift_width = shift_width<<1;
+	printf("%d\n", shift_width);
 	//printf("S: %d\n", subsequence);
 	//print128_bit(temp_shift_XMM);
       }
+      printf("%d/%d\n", subsequence, max);
+      subsequence = max;
 
       longest_subsequence = (subsequence>=longest_subsequence)*subsequence + (subsequence<longest_subsequence)*longest_subsequence;
       index_of_mask = (subsequence>=longest_subsequence)*k + (subsequence<longest_subsequence)*index_of_mask;
@@ -752,7 +770,7 @@ int bit_magnet_bin_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint
   // Find the difference
   total_difference = popcount1_m128i_sse(result_XMM);
 
-  //printf("total_difference: %d\n", total_difference);
+  printf("total_difference: %d\n", total_difference);
 
   if (total_difference > (max_error) )
     return 0;

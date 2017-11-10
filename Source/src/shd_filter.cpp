@@ -3,6 +3,9 @@
 #include <string.h>
 
 SHDFilter::SHDFilter() {
+  for (int i = 0; i < 128; i++) {
+    blank_string[i] = 0x0;
+  }
   strncpy(shd_read, blank_string, 128);
   strncpy(shd_ref, blank_string, 128);
 }

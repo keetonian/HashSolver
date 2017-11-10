@@ -1,4 +1,5 @@
 #include "genome.hpp"
+#include <cstdlib>
 
 Genome::Genome(){
   // Anything for default?

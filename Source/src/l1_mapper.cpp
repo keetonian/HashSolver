@@ -1,6 +1,6 @@
 #include <vector>
-#include <set>
 #include <cstdlib>
+#include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -14,6 +14,7 @@
 #include "l1_mapper.hpp"
 #include "l1_hobbes_solver.hpp"
 #include "l1_basic_solver.hpp"
+#include "fastHASHSolver.h"
 #include "seed_solver.hpp"
 #include "sw_aligner.hpp"
 #include "shd_filter.hpp"
@@ -22,6 +23,8 @@
 #include "mapper_common.hpp"
 #include "opal_aligner.hpp"
 #include "ssw_cpp.h"
+#include "optimalSolverLN.h"
+#include "bwt.h"
 
 
 using namespace std;
@@ -38,49 +41,81 @@ int main(int argc, char** argv) {
   // Load hash table
   hashtable.read_from_file(hashtable_filename);
 
+  // Load BWT objects
+  bwt_t * bwt = load_bwt(bwt_filename);
+  if (NULL == bwt) {
+    cerr << "bwt failed to load" << endl;
+    return 1;
+  }
+  cerr << bwt << endl;
+
   // Load genome
   read_genome_2bit();
   //read_genome_char();
-  cout << "genome read" << endl;
+  //cout << "genome read" << endl;
+
+  locations = new vector<uint32_t>();
+  reverse_locations = new vector<uint32_t>();
+  uint32_t reserve_space = 5000000;
+  locations->reserve(reserve_space);
+  reverse_locations->reserve(reserve_space);
+  fprintf(stderr, "Locations: %p - %p\n", locations, locations + reserve_space);
+  fprintf(stderr, "Locations2: %p - %p\n", reverse_locations, reverse_locations + reserve_space);
 
   // Select Solver
   switch(seed_selection) {
-    case SeedSelection::naive: solver = new BasicSolver();
-			       solver->loadHashTables(&hashtable);
-			       break;
+    case SeedSelection::naive: 
+      solver = new BasicSolver();
+      solver->loadTables(&hashtable);
+      break;
     case SeedSelection::hobbes: 
-			       solver = new HobbesSolver();
-			       solver->loadHashTables(&hashtable);
-			       break;
+      solver = new HobbesSolver();
+      solver->loadTables(&hashtable);
+      break;
     case SeedSelection::optimal:
-			       // Optimal solver.
-			       // Uses bwa instead of hash table.
-			       break;
+      solver = new OptimalSolverLN();
+      solver->loadTables(bwt);
+      optimal_seed_selection = true;
+      break;
+    case SeedSelection::fasthash:
+      solver = new FastHASHSolver();
+      solver->loadTables(&hashtable);
+      fasthash_seed_selection = true;
+      break;
   }
 
   // Select SWA implementation
   switch(swa_function) {
-    case SWAFunction::noswa: finalize_read_locations = &NoSWA;
-			     break;
-    case SWAFunction::seqalign: finalize_read_locations = &SWA_Seqalign;
-				break;
-    case SWAFunction::edlib: finalize_read_locations = &Meyers_Edlib;
-			     break;
-    case SWAFunction::opal: finalize_read_locations = &Opal;
-			    break;
-    case SWAFunction::ssw: finalize_read_locations = &SSW;
-			    break;
+    case SWAFunction::noswa: 
+      finalize_read_locations = &NoSWA;
+      break;
+    case SWAFunction::seqalign: 
+      finalize_read_locations = &SWA_Seqalign;
+      break;
+    case SWAFunction::edlib: 
+      finalize_read_locations = &Meyers_Edlib;
+      break;
+    case SWAFunction::opal: 
+      finalize_read_locations = &Opal;
+      break;
+    case SWAFunction::ssw: 
+      finalize_read_locations = &SSW;
+      break;
   }
 
   switch(filter_algorithm) {
-    case FilterAlgorithm::none: filter_read_locations = &NoFilter;
-				break;
-    case FilterAlgorithm::SHD: filter_read_locations = &SHD;
-			       break;
-    case FilterAlgorithm::MAGNET: filter_read_locations = &MAGNET;
-				  break;
-    case FilterAlgorithm::QGRAM: filter_read_locations = &QGRAM;
-				 break;
+    case FilterAlgorithm::none: 
+      filter_read_locations = &NoFilter;
+      break;
+    case FilterAlgorithm::SHD: 
+      filter_read_locations = &SHD;
+      break;
+    case FilterAlgorithm::MAGNET: 
+      filter_read_locations = &MAGNET;
+      break;
+    case FilterAlgorithm::QGRAM: 
+      filter_read_locations = &QGRAM;
+      break;
   }
 
   // Load Read File
@@ -99,7 +134,7 @@ int main(int argc, char** argv) {
 
   /*
    * Consider here checking the parameters.
-   *	ks-seq.l is the length of the reads.
+   *	ks->seq.l is the length of the reads.
    *	Check:
    *	  limit: max value is len(read) - number_of_seeds * seed_size
    *	  number_of_seeds: max value is len(read) / seed_size
@@ -151,34 +186,53 @@ int main(int argc, char** argv) {
 // Maps a single read.
 void map_read(string read) {
 
+  locations->clear();
+  reverse_locations->clear();
+
+  auto start = chrono::steady_clock::now();
+  auto end = chrono::steady_clock::now();
   // Get the reverse read to map as well.
   string reverse = reverse_read(read);
 
   // seed selection
-  auto start = chrono::steady_clock::now();
-  uint8_t seeds[number_of_seeds];
-  uint8_t reverse_seeds[number_of_seeds];
-  solver->solveDNA(read, seeds);
-  solver->solveDNA(reverse, reverse_seeds);
-  auto end = chrono::steady_clock::now();
-  time_seeds += (end - start).count();
+  if (!fasthash_seed_selection && !optimal_seed_selection) {
+    start = chrono::steady_clock::now();
+    uint8_t seeds[number_of_seeds];
+    uint8_t reverse_seeds[number_of_seeds];
+    solver->solveDNA(read, seeds);
+    solver->solveDNA(reverse, reverse_seeds);
+    end = chrono::steady_clock::now();
+    time_seeds += (end - start).count();
 
-  // location selection
-  start = chrono::steady_clock::now();
-  // Keep locations on the stack unless I have to move them.
-  set<uint32_t> locations;
-  set<uint32_t> reverse_locations;
-  get_locations(&read, seeds, &locations);
-  get_locations(&reverse, reverse_seeds, &reverse_locations);
-  end = chrono::steady_clock::now();
-  time_locations += (end - start).count();
+    // location selection
+    start = chrono::steady_clock::now();
+    // Keep locations on the stack unless I have to move them.
+    get_locations(&read, seeds, *locations);
+    get_locations(&reverse, reverse_seeds, *reverse_locations);
+    end = chrono::steady_clock::now();
+    time_locations += (end - start).count();
+  }
+  else {
+    start = chrono::steady_clock::now();
+    solver->solveDNA(read, *locations);
+    solver->solveDNA(reverse, *reverse_locations);
+    end = chrono::steady_clock::now();
+    time_locations += (end-start).count();
+  }
 
+  std::sort(locations->begin(), locations->end());
+  locations->erase(std::unique(locations->begin(), locations->end()), locations->end());
+  /*for(uint32_t i = 0; i < locations.size(); i++){
+    cout << "  " << locations.at(i) << endl;
+    }*/
+  std::sort(reverse_locations->begin(), reverse_locations->end());
+  reverse_locations->erase(std::unique(reverse_locations->begin(), reverse_locations->end()), reverse_locations->end());
   // filtering and SWA
 
   cout << read << "\n";
-  filter_and_finalize_reads(&read, &locations);
+  filter_and_finalize_reads(&read, *locations);
   cout << "Reverse:" << "\n";
-  filter_and_finalize_reads(&reverse, &reverse_locations);
+  filter_and_finalize_reads(&reverse, *reverse_locations);
 }
 
 // Reverses and inverts the string. O(N) complexity.
@@ -196,8 +250,8 @@ void get_seeds(string * read, uint8_t * seeds) {
 }
 
 // Uses the seeds found using the seed selection step
-// Gets all of the locations, puts into a set (no duplicates)
-void get_locations(string * read, uint8_t * seeds, set<uint32_t> * locations) {
+// Gets all of the locations, puts into a fibonacci heap(no duplicates)
+void get_locations(string * read, uint8_t * seeds, std::vector<uint32_t> &locations) {
   // Set up variables
   uint32_t seed;
   uint32_t hash;
@@ -217,22 +271,24 @@ void get_locations(string * read, uint8_t * seeds, set<uint32_t> * locations) {
     for (uint32_t k = 0; k < frequency; k++) {
       location = hashtable.get_location(offset+k);
       // Subtract seed position to make sure locations start at beginning of read
-      locations->insert(location - seed);
+      locations.push_back(location - seed);
     }
   }
 }
 
 // Filters and finalizes the reads using the specified filters, SWA implementations
-void filter_and_finalize_reads(string * read, set<uint32_t> * locations) {
+void filter_and_finalize_reads(string * read, std::vector<uint32_t> & locations) {
   char reference[read_length];
   chrono::time_point<chrono::steady_clock> start, end;
   // Implement filters, based on flags set.
-  for (set<uint32_t>::iterator it=locations->begin(); it != locations->end(); ++it) {
+  for (auto it=locations.begin(); it != locations.end(); ++it) {
     // Get the reference DNA from the genome
     decompress_2bit_dna(reference, *it);
     // Filter
     start = chrono::steady_clock::now();
-    bool pass_filter = filter_read_locations(read, reference);
+    bool pass_filter = fasthash_seed_selection | !do_filter;
+    if (!pass_filter)
+      pass_filter = filter_read_locations(read, reference);
     end = chrono::steady_clock::now();
     time_filter += (end - start).count();
     if (pass_filter && do_swa) {
@@ -315,7 +371,7 @@ bool SSW(string * read, char * reference) {
   StripedSmithWaterman::Alignment alignment;
   aligner.Align(read->c_str(), reference, read_length, filter, &alignment, read_length);
   if (alignment.sw_score >= 190)
-   return true;
+    return true;
   return false;
 }
 
@@ -405,7 +461,7 @@ void read_genome_2bit() {
   else {
     cerr << "Unable to open genome." << endl;
   }
-  cout << index << endl;
+  //cout << index << endl;
   //cout << index << endl;
   fasta.close();
 }
@@ -428,3 +484,50 @@ void decompress_2bit_dna_number(char * destination, uint32_t starting_index) {
   }
 }
 
+bwt_t *load_bwt(const char *hint)
+{
+  string tmp;
+  string prefix;
+  bwt_t *bwt;
+  prefix = hint;
+  if (prefix == "") {
+    return 0;
+  }
+
+  // Load BWT
+  tmp = prefix + ".bwt";
+  bwt = bwt_restore_bwt(tmp.c_str());
+
+  // Load SA
+  tmp = prefix + ".sa";
+  bwt_restore_sa(tmp.c_str(), bwt);
+
+  // Load size of genome (from ANN)
+  tmp = prefix + ".ann";
+  ifstream ann(tmp.c_str());
+  uint64_t genome_size;
+  if (ann.is_open()) {
+    // Genome size should be first entry in ann file
+    ann >> genome_size;
+  } else {
+    cerr << "Unable to open bwt genome file (.pac)." << endl;
+  }
+  ann.close();
+
+  // Load BWT Genome
+  tmp = prefix + ".pac";
+  load_bwt_genome(tmp.c_str(), genome_size); 
+  return bwt;
+}
+
+void load_bwt_genome(const char * filename, uint64_t size) {
+  // Get the right number of bytes (size/4 + 3)
+  size = (size>>2) + 3;
+  bwa_genome = (uint8_t *)malloc(size * sizeof(uint8_t));
+  FILE * f = fopen(filename, "rb");
+  size_t data = fread(bwa_genome,  sizeof(uint8_t), size, f);
+  if (data < size - 4) {
+    cerr << "Expected " << size << " but read " << data << " from " << filename << endl;
+  }
+  fclose(f);
+}

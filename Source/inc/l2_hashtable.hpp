@@ -5,6 +5,9 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "hash_common.hpp"
+#include <vector>
+
+class Hashtable;
 
 class L2Hashtable{
   private:
@@ -67,6 +70,8 @@ class L2Hashtable{
   void l2_read_hashtable_from_file(const char * name);
   void l2_read_locations_from_file(const char * name);
   void l2_read_overflow_from_file(const char * name);
+
+  static void construct_l2_tables(L2Hashtable & l2hashtable, Hashtable & hashtable, uint32_t big_buckets, std::vector<uint32_t> *buckets, std::vector<std::vector<char>* > *genome_vector, std::vector<uint32_t> ** l1table);
 
   void l2_free_memory();
 

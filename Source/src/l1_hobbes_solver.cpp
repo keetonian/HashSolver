@@ -85,8 +85,8 @@ void HobbesSolver::reset() {
   memcpy(invertedList, defaultInvertedList, readLength - this->seedLength + 1);
 }
 
-void HobbesSolver::loadHashTables(Hashtable * hashtable) {
-  this->hashtable = hashtable;
+void HobbesSolver::loadTables(void * hashtable) {
+  this->hashtable = (Hashtable *)hashtable;
 }
 
 uint32_t HobbesSolver::get_seed_size() {

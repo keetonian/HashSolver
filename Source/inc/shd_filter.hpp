@@ -7,7 +7,7 @@ class SHDFilter {
   private:
     char shd_read[128] __aligned__;
     char shd_ref[128] __aligned__;
-    char blank_string[128] = "";
+    char blank_string[128];
   public:
     SHDFilter();
     bool filter(const char * read, const char * ref, int error, int read_length);

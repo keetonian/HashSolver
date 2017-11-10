@@ -34,9 +34,9 @@
 #include <zlib.h>
 #include "utils.h"
 
-#ifdef USE_MALLOC_WRAPPERS
-#  include "malloc_wrap.h"
-#endif
+//#ifdef USE_MALLOC_WRAPPERS
+//#  include "malloc_wrap.h"
+//#endif
 
 #define KS_SEP_SPACE 0 // isspace():  t, \n, \v, \f, \r
 #define KS_SEP_TAB   1 // isspace() && !' '
@@ -90,7 +90,7 @@ static inline int ks_getc(kstream_t *ks)
   if (ks->is_eof && ks->begin >= ks->end) return -1;	 
   if (ks->begin >= ks->end) {							 
     ks->begin = 0;									 
-    ks->end = err_gzread(ks->f, ks->buf, __bufsize);	 
+    ks->end = gzread(ks->f, ks->buf, __bufsize);	 
     if (ks->end == 0) { ks->is_eof = 1; return -1;}	 
   }													 
   return (int)ks->buf[ks->begin++];					 
@@ -110,7 +110,7 @@ static int ks_getuntil2(kstream_t *ks, int delimiter, kstring_t *str, int *dret,
     if (ks->begin >= ks->end) {									 
       if (!ks->is_eof) {										 
 	ks->begin = 0;										 
-	ks->end = err_gzread(ks->f, ks->buf, __bufsize);		 
+	ks->end = gzread(ks->f, ks->buf, __bufsize);		 
 	if (ks->end == 0) { ks->is_eof = 1; break; }		 
       } else break;											 
     }															 
@@ -155,13 +155,13 @@ static inline int ks_getuntil(kstream_t *ks, int delimiter, kstring_t *str, int 
 
 #define kseq_rewind(ks) ((ks)->last_char = (ks)->f->is_eof = (ks)->f->begin = (ks)->f->end = 0)
 
-kseq_t *kseq_init(gzFile fd)									
+inline kseq_t *kseq_init(gzFile fd)									
 {																	
   kseq_t *s = (kseq_t*)calloc(1, sizeof(kseq_t));					
   s->f = ks_init(fd);												
   return s;														
 }																	
-void kseq_destroy(kseq_t *ks)									
+inline void kseq_destroy(kseq_t *ks)									
 {																	
   if (!ks) return;												
   free(ks->name.s); 
@@ -178,7 +178,7 @@ void kseq_destroy(kseq_t *ks)
    -2   truncated quality string
    */
 
-int kseq_read(kseq_t *seq) 
+inline int kseq_read(kseq_t *seq) 
 { 
   int c; 
   kstream_t *ks = seq->f; 

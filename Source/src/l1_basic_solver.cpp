@@ -9,8 +9,8 @@ BasicSolver::BasicSolver() {
 BasicSolver::~BasicSolver() {
 }
 
-void BasicSolver::loadHashTables(Hashtable * hashtable) {
-  this->hashtable = hashtable;
+void BasicSolver::loadTables(void * hashtable) {
+  this->hashtable = (Hashtable*)hashtable;
 }
 
 uint32_t BasicSolver::get_seed_size() {
