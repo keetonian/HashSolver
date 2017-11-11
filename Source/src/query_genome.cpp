@@ -19,7 +19,7 @@ int main(int argc, char** argv) {
   uint32_t bases = atoi(argv[2]);
 
   vector<char> genome;
-  string g = name + ".fasta";
+  string g = name;
   ifstream fasta(g.c_str());
   if(fasta.is_open()){
     string line;

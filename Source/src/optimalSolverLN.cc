@@ -521,8 +521,8 @@ int OptimalSolverLN::solveDNA(string DNA, std::vector<uint32_t> & v) {
 	processedReads++;
 	backtrack();
 	for(uint32_t i=0; i<seedNum; i++) { 
-	  for(uint32_t j=seeds[i].sa_begin; j<seeds[i].sa_end; j++) {
-	    v.push_back(bwt_sa(bwt, j));
+	  for(uint32_t j=seeds[i].sa_begin; j<=seeds[i].sa_end; j++) {
+	    v.push_back(bwt_sa(bwt, j) - seeds[i].start);
 	  }
 	}
 
