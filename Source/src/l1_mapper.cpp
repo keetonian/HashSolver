@@ -54,6 +54,8 @@ int main(int argc, char** argv) {
   //read_genome_char();
   //cout << "genome read" << endl;
 
+  do_filter = true;
+
   locations = new vector<uint32_t>();
   reverse_locations = new vector<uint32_t>();
   uint32_t reserve_space = 5000000;
@@ -109,6 +111,7 @@ int main(int argc, char** argv) {
   switch(filter_algorithm) {
     case FilterAlgorithm::none: 
       filter_read_locations = &NoFilter;
+      do_filter = false;
       break;
     case FilterAlgorithm::SHD: 
       filter_read_locations = &SHD;
