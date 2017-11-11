@@ -198,29 +198,4 @@ test:
 	sh $(TST)/run_tests.sh
 
 
-#XX = g++
-##CPPFLAGS=-O3
-##CPPFLAGS=-g -DDEBUG
-#CPPFLAGS=-O3 -DTEST -DHAVE_PTHREAD -std=c++11 -g
-#LIB= -lz -lrt -lm -lpthread
-#EXE= testHobbesSolver testBasicSolver 
 
-#all: $(EXE)
-
-#KmerHash.o: KmerHash.cc KmerHash.h
-#	$(CXX) $(CPPFLAGS) -c $<
-	
-#RefDB.o: RefDB.cc RefDB.h
-#	$(CXX) $(CPPFLAGS) -c $<
-
-#hobbesSolver.o: hobbesSolver.cc hobbesSolver.h l1_hashtable.hpp hashtable.o l2_hashtable.o
-#	$(CXX) $(CPPFLAGS) -c $< -o $@ 
-
-#basicSolver.o: basicSolver.cc basicSolver.h
-#	$(CXX) $(CPPFLAGS) $(INC) -c $< -o $@ 
-
-#testHobbesSolver: testHobbesSolver.cc hobbesSolver.o l1_hashtable.o l2_hashtable.o utils.o malloc_wrap.o
-#	$(CXX) $(CPPFLAGS) -o $@ $^ $(LIB)
-
-#testBasicSolver: testBasicSolver.cc basicSolver.o l1_hashtable.o utils.o malloc_wrap.o
-#	$(CXX) $(CPPFLAGS) $(INC) -o $@ $^ $(LIB) 
