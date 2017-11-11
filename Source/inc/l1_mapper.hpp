@@ -12,6 +12,7 @@
 
 typedef bool (*Finalize_Reads) (std::string * read, char * reference);
 typedef bool (*Filter_Reads) (std::string * read, char * reference);
+typedef void (*Decompress_DNA) (char * destination, uint32_t starting_index);
 
 char* reads_filename = 0;
 char* directory_name = 0;
@@ -49,6 +50,7 @@ OpalAligner opal_aligner;
 
 Finalize_Reads finalize_read_locations = NULL;
 Filter_Reads filter_read_locations = NULL;
+Decompress_DNA decompress_dna = NULL;
 
 void map_read(std::string read);
 
@@ -74,6 +76,7 @@ bool MAGNET(std::string * read, char * reference);
 bool QGRAM(std::string * read, char * reference);
 
 void decompress_2bit_dna(char * destination, uint32_t starting_index);
+void decompress_2bit_dna_pac(char * destination, uint32_t starting_index);
 void convert_for_opal(std::string read, unsigned char * destination, uint32_t read_length);
 
 void read_genome_2bit();

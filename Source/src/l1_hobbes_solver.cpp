@@ -69,13 +69,13 @@ void HobbesSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLeng
   dynamicMatrix[0] = new int [dynamicMatrixWidth * (seedNum + 1)];
   defaultDynamicMatrix = new int [dynamicMatrixWidth * (seedNum + 1)];
 
-  for (int i = 1; i <= seedNum; i++)
+  for (unsigned int i = 1; i <= seedNum; i++)
     dynamicMatrix[i] = dynamicMatrix[i-1] + dynamicMatrixWidth;
 
-  for (int i = 0; i < readLength - seedLength + 1; i++)
+  for (unsigned int i = 0; i < readLength - seedLength + 1; i++)
     defaultInvertedList[i] = 0;
 
-  for (int i = 0; i < dynamicMatrixWidth * (seedNum + 1); i++)
+  for (unsigned int i = 0; i < dynamicMatrixWidth * (seedNum + 1); i++)
     defaultDynamicMatrix[i] = 0;
 
 }
@@ -98,7 +98,7 @@ int HobbesSolver::solveDNA(string DNA, uint8_t * seeds) {
   reset();
 
   uint64_t hash;
-  for (int i = 0; i < readLength - seedLength + 1; i++) {
+  for (unsigned int i = 0; i < readLength - seedLength + 1; i++) {
     if (!i) {
       string seed = DNA.substr(i, seedLength);
       hash = hashtable->get_hash(seed.c_str());

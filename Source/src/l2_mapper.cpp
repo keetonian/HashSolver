@@ -55,6 +55,7 @@ int main(int argc, char** argv) {
   fprintf(stderr, "Locations: %p - %p\n", &locations, &locations + reserve_size);
   fprintf(stderr, "Locations2: %p - %p\n", &reverse_locations, &reverse_locations + reserve_size);
 
+  decompress_dna = &decompress_2bit_dna;
 
   // Load genome
   read_genome_2bit();
@@ -75,6 +76,7 @@ int main(int argc, char** argv) {
       solver = new OptimalSolverLN();
       solver->loadTables(bwt);
       optimal_seed_selection = true;
+      decompress_dna = &decompress_2bit_dna_pac;
       break;
     case SeedSelection::fasthash:
       solver = new FastHASHSolver();
@@ -317,7 +319,7 @@ void filter_and_finalize_reads(string * read, std::vector<uint32_t> & locations)
   // Implement filters, based on flags set.
   for (auto it=locations.begin(); it != locations.end(); ++it) {
     // Get the reference DNA from the genome
-    decompress_2bit_dna(reference, *it);
+    decompress_dna(reference, *it);
     // Filter
     start = chrono::steady_clock::now();
     bool pass_filter = fasthash_seed_selection | !do_filter;
@@ -508,6 +510,12 @@ void decompress_2bit_dna(char * destination, uint32_t starting_index) {
     uint64_t dna = genome[(starting_index+i)>>5];
     uint8_t char_code = (dna >> (2*((starting_index + i)%32))) & 0x03;
     destination[i] = reverse_values[char_code];
+  }
+}
+
+void decompress_2bit_dna_pac(char * destination, uint32_t starting_index) {
+  for(uint32_t k = 0; k < read_length; k++) {
+    destination[k] = reverse_values[bwa_genome[((starting_index + k)>>2)] >>((~(k+starting_index)&3)<<1) & 3];
   }
 }
 
