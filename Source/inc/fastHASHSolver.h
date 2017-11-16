@@ -13,8 +13,9 @@ public:
 
 	//void loadTree(string treeFileName);
 	void init(unsigned int readLength, unsigned int seedNum, unsigned int seedLength, uint32_t lmit);
-	int solveDNA(string DNA, uint8_t * seeds) {return 0x0;}
-	int solveDNA(string DNA, std::vector<uint32_t>& locations);
+	int solveDNA(const string &DNA, uint8_t * seeds) {return 0x0;}
+	int solveDNA(const string &DNA, std::vector<uint32_t>& locations);
+	int solveDNA(const string &DNA, uint8_t *, std::vector<uint32_t>& locations) {return 0;};
 	void loadTables(void * hashtable);
 	uint32_t get_seed_size();
 

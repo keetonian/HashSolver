@@ -1,10 +1,15 @@
 #include <cstring>
+#include <cstdlib>
+#include <fstream>
 #include <cassert>
 #include <iostream>
 #include <climits>
 #include <limits>
 #include "l1_hobbes_solver.hpp"
 #include "l1_hashtable.hpp"
+
+extern vector<uint32_t> SeedFrequencies;
+extern vector<uint32_t> SeedOffsets;
 
 HobbesSolver::HobbesSolver() {
   invertedList = NULL;
@@ -64,10 +69,12 @@ void HobbesSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLeng
 
   invertedList = new int [readLength - seedLength + 1];
   defaultInvertedList = new int [readLength - seedLength + 1];
+  fprintf(stderr, "HobbesInvertedList:%p-%p\n", invertedList, invertedList + readLength - seedLength + 1);
 
   dynamicMatrix = new int* [seedNum + 1];
   dynamicMatrix[0] = new int [dynamicMatrixWidth * (seedNum + 1)];
   defaultDynamicMatrix = new int [dynamicMatrixWidth * (seedNum + 1)];
+  fprintf(stderr, "HobbesDynamicMatrix:%p-%p\n", dynamicMatrix, dynamicMatrix + dynamicMatrixWidth * (seedNum + 1));
 
   for (unsigned int i = 1; i <= seedNum; i++)
     dynamicMatrix[i] = dynamicMatrix[i-1] + dynamicMatrixWidth;
@@ -93,7 +100,7 @@ uint32_t HobbesSolver::get_seed_size() {
   return hashtable->get_seed_size();
 }
 
-int HobbesSolver::solveDNA(string DNA, uint8_t * seeds) {
+int HobbesSolver::solveDNA(const string &DNA, uint8_t * seeds) {
   assert(DNA.length() == readLength);
   reset();
 
@@ -101,12 +108,12 @@ int HobbesSolver::solveDNA(string DNA, uint8_t * seeds) {
   for (unsigned int i = 0; i < readLength - seedLength + 1; i++) {
     if (!i) {
       string seed = DNA.substr(i, seedLength);
-      hash = hashtable->get_hash(seed.c_str());
+      hash = hashtable->get_hash(&(DNA[i]));
     }
     else {
       hash = hashtable->get_hash(DNA[i+seedLength-1], hash);
     }
-    //invertedList[i] = hashtable->get_frequency(hash);
+    invertedList[i] = hashtable->get_frequency(hash);
   }
 
   for (int counter = 1; counter < seedNum + 1; counter++) {
@@ -124,7 +131,7 @@ int HobbesSolver::solveDNA(string DNA, uint8_t * seeds) {
 
   int width = dynamicMatrixWidth - 1;
   int invertedListIndex = readLength - seedLength - limit;
-  int prevAcc, seedFreq;
+  int prevAcc=0, seedFreq;
 
   for(int heightCount = seedNum; heightCount >= 0; heightCount --) 
   {
@@ -139,6 +146,8 @@ int HobbesSolver::solveDNA(string DNA, uint8_t * seeds) {
 	--invertedListIndex;
       }
       seeds[heightCount] = invertedListIndex;
+      SeedFrequencies[heightCount] = seedFreq; // FAST HASH
+      SeedOffsets[heightCount] = hashtable->get_offset(hashtable->get_hash(&(DNA[invertedListIndex]))); // FAST HASH
       invertedListIndex -= seedLength;
     }
     prevAcc = dynamicMatrix[heightCount][width];

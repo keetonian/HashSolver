@@ -2,6 +2,9 @@
 #include <cassert>
 #include <algorithm>
 
+extern vector<uint32_t> SeedFrequencies;
+extern vector<uint32_t> SeedOffsets;
+
 BasicSolver::BasicSolver() {
   hashtable = NULL;
 }
@@ -24,16 +27,20 @@ void BasicSolver::init(uint32_t readLength, uint32_t seedNum, uint32_t seedLengt
   this->readLength = readLength;
 }
 
-int BasicSolver::solveDNA(string DNA, uint8_t * seeds) {
+int BasicSolver::solveDNA(const string &DNA, uint8_t * seeds) {
   assert(DNA.length() == readLength);
 
   uint32_t interval = readLength / seedNum;
 
   int totalFreq = 0;
 
-  for (int i = 0; i < seedNum; i++) {
-    string seed = DNA.substr(i * interval, seedLength);
-    totalFreq += hashtable->get_frequency(hashtable->get_hash(seed.c_str()));
+
+  for (uint32_t i = 0; i < seedNum; i++) {
+    uint32_t hash = hashtable->get_hash(&(DNA[i*interval]));
+    uint32_t frequency = hashtable->get_frequency(hash);
+    totalFreq += frequency;
+    SeedFrequencies[i] = frequency; // FAST HASH
+    SeedOffsets[i] = hashtable->get_offset(hash); // FAST HASH
     seeds[i] = i * interval;
   }
 

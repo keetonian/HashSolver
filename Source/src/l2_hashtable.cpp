@@ -254,7 +254,7 @@ void L2Hashtable::l2_read_hashtable_from_file(const char * name){
   //for(uint64_t i = 0; i < size[0]*l2table_size+1; i++) {
     //std::cout << l2hashtable[i] << std::endl;
   //}
-  fprintf(stderr, "L2 Hashtable.offsets: %p-%p\n", l2hashtable, l2hashtable+l2table_size * l2num_tables + 1);
+  fprintf(stderr, "L2Hashtable.offsets:%p-%p\n", l2hashtable, l2hashtable+l2table_size * l2num_tables + 1);
   fclose(f);
 }
 
@@ -273,7 +273,7 @@ void L2Hashtable::l2_read_locations_from_file(const char * name){
   data = fread(l2locations, sizeof(uint32_t), l2locations_size, f);
   if(data != l2locations_size)
     printf("Error: locations list not read\n");
-  fprintf(stderr, "L2 Hashtable.locations: %p-%p\n", l2locations, l2locations + l2locations_size);
+  fprintf(stderr,"L2 Hashtable.locations:%p-%p\n", l2locations, l2locations + l2locations_size);
   fclose(f);
 }
 
@@ -293,7 +293,7 @@ void L2Hashtable::l2_read_overflow_from_file(const char * name){
   data = fread(l2overflow_values, sizeof(uint32_t), l2overflow_size, f);
   if(data != l2overflow_size)
     printf("Error: overflow list not read\n");
-  fprintf(stderr, "L2 Hashtable.overflow: %p-%p\n", l2overflow_values, l2overflow_values + l2overflow_size);
+  fprintf(stderr, "L2Hashtable.overflow:%p-%p\n", l2overflow_values, l2overflow_values + l2overflow_size);
   fclose(f);
 }
 

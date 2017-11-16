@@ -1,3 +1,6 @@
+#ifndef OPTIMAL_SOLVER_H_
+#define OPTIMAL_SOLVER_H_
+
 #include <string>
 #include <ostream>
 #include <vector>
@@ -46,8 +49,8 @@ public:
 	void loadBwt(bwt_t *bwt, int min_length);
 	void init(uint32_t readLength, uint32_t seedNum, uint32_t, uint32_t);
 	void reset();
-	int solveDNA(string DNA, std::vector<uint32_t> &);
-	int solveDNA(string DNA, uint8_t * seeds) {return 0;}
+	int solveDNA(const string &DNA, uint8_t * seeds, std::vector<uint32_t> &);
+	int solveDNA(const string &DNA, uint8_t * seeds) {return 0;}
 	uint32_t get_seed_size() {return 0;}
 	void loadTables(void * table);
 	void fillMatrix(string DNA);
@@ -106,3 +109,5 @@ private:
 	vector<unsigned long long> divTravel;
 	unsigned int processedReads;
 };
+
+#endif //OPTIMAL_SOLVER_H_

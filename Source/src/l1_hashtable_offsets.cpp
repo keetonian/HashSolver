@@ -87,7 +87,7 @@ uint32_t Hashtable::get_frequency(uint64_t hash){
 }
 
 uint32_t Hashtable::get_offset(uint64_t hash){
-  if(offsets[hash] & MASK == MASK) {
+  if((offsets[hash] & MASK) == MASK) {
     return offsets[hash] & ~MASK;
   }
   return offsets[hash];
@@ -162,10 +162,11 @@ void Hashtable::read_offsets_from_file(const char * name){
   if(data != 1)
     printf("Seed size not read from the table\n");
   set_seed_size(size[0]);
+  initialize_hashtable();
   data = fread(offsets, sizeof(uint32_t), offsets_size, f);
   if(data != offsets_size)
     printf("Elements read: %zu/%zu\n", data, offsets_size);
-  fprintf(stderr, "L1 Hashtable.offsets: %p-%p\n", offsets, offsets+offsets_size);
+  fprintf(stderr, "L1Hashtable.offsets:%p-%p\n", offsets, offsets+offsets_size);
   fclose(f);
 }
 
@@ -210,7 +211,7 @@ void Hashtable::read_locations_from_file(const char * name){
   data = fread(locations, sizeof(uint32_t), locations_size, f);
   if(data != locations_size)
     printf("Not enough memory. Elements read: %zu/%zu\n", data, locations_size);
-  fprintf(stderr, "L1 Hashtable.locations: %p-%p\n", locations, locations+locations_size);
+  fprintf(stderr, "L1Hashtable.locations:%p-%p\n", locations, locations+locations_size);
   fclose(f);
 }
 

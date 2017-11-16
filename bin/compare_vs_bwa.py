@@ -3,16 +3,15 @@
 import sys
 # Requires 2 arguments
 if len(sys.argv) != 3:
+    print("Usage: ./compare_vs_bwa.py <our mapper output> <bwa output>")
     print("Requires two arguments. Arguments provided: {}".format(len(sys.argv)))
+    sys.exit()
 
 with open(sys.argv[1]) as f:
-    reference = f.read().split("\n")
+    our_output = f.read().split("\n")
 
 with open(sys.argv[2]) as f:
-    data2 = f.read().split("\n")
-
-if len(reference ) != len(data2):
-    print("Lengths do not match.")
+    bwa_output = f.read().split("\n")
 
 reverse = 16
 unmapped = 4
@@ -24,12 +23,16 @@ total_other = 0
 sequence = ""
 normalize = 5
 for i in range(len(reference)):
-    if i%3 == 1 or i%3==2:
+    # BWA: first item is the name
+    # Other: i % 3 == 0 is the name
+    #        i % 3 == 1 is the forward
+    #        i % 3 == 2 is the reverse
+    if i%2 == 1:
         d1 = [int(s) for s in reference[i].split(' ')[:-1]]
         d2 = [int(s) for s in data2[i].split(' ')[:-1]]
         total_mappings += len(d1)
         total_other += len(d2)
-    if i%3 == 0:
+    if i%4 == 0:
         sequence = reference[i]
     if reference[i] == data2[i]:
         continue

@@ -15,6 +15,7 @@
 #include "popcount.h"
 #include "bit_convert.h"
 #include "mask.h"
+#include "time.h"
 
 uint8_t MASK_01[32] __aligned__ = { 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
   0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55,
@@ -329,7 +330,7 @@ int bit_vec_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
 
   total_difference = popcount1_m128i_sse(diff_XMM);
   if (total_difference < max_error)
-    return 1;
+    return 2;
 
   flip_false_zero(diff_XMM);
 
@@ -402,6 +403,7 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
   int total_difference = 0;
   int longest_subsequence = 0;
   uint32_t index_of_mask = 0;
+  uint32_t read_length = 100;
 
   //Start iteration
   int j;
@@ -427,7 +429,7 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
   //printf("Total difference: %d\n", total_difference);
 
   if (total_difference <= max_error)
-    return 1;
+    return 2;
   else if(max_error == 0)
     return 0;
 
@@ -449,10 +451,10 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
     // Shift back so that starts with leftmost bit
     diff_XMM[j] = shift_left_sse1(diff_XMM[j], j);
 
-    total_difference = popcount1_m128i_sse(diff_XMM[j]);
+/*    total_difference = popcount1_m128i_sse(diff_XMM[j]);
     if (total_difference <= max_error)
-      return 1;
-
+      return 2;
+*/
     //Right shift ref
     shift_XMM = shift_right_sse1(ref_XMM0, j);
     temp_diff_XMM = _mm_xor_si128(shift_XMM, read_XMM0);
@@ -462,10 +464,11 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
     diff_XMM[num_vectors - j] = _mm_and_si128(temp_diff_XMM, temp_mask);
     // Shift back so that starts with leftmost bit
     diff_XMM[num_vectors - j] = shift_left_sse1(diff_XMM[num_vectors - j], j);
-
+/*
     total_difference = popcount1_m128i_sse(diff_XMM[num_vectors - j]);
     if (total_difference <= max_error)
-      return 1;
+      return 2;
+*/
   }
 
   // Create result register.
@@ -484,6 +487,7 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
     diff_XMM[j] = _mm_or_si128(temp_mask, diff_XMM[j]);
     //print128_bit(diff_XMM[j]);
   }
+  uint32_t cumulative_subsequences = 0;
 
   for (j = 0; j <= max_error; j++) {
     // Find longest subsequence of 0's
@@ -497,6 +501,7 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
       //print128_bit(temp_shift_XMM);
       int subsequence = 0;
       // DO BINARY SEARCH
+      //clock_t cpu_time1 = clock();
       while(!_mm_test_all_zeros(temp_shift_XMM, temp_diff_XMM)) {
 	// Shift until true.
 	temp_shift_XMM = _mm_and_si128(shift_right_sse1(temp_shift_XMM, 1), temp_shift_XMM);
@@ -504,13 +509,20 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
 	//printf("S: %d\n", subsequence);
 	//print128_bit(temp_shift_XMM);
       }
+      //clock_t cpu_time2 = clock();
+      //total_shift_time += (double)(cpu_time2 - cpu_time1);
 
       longest_subsequence = (subsequence>=longest_subsequence)*subsequence + (subsequence<longest_subsequence)*longest_subsequence;
       index_of_mask = (subsequence>=longest_subsequence)*k + (subsequence<longest_subsequence)*index_of_mask;
 
     }
-    if (longest_subsequence <= 1)
+
+    if (longest_subsequence <= 1) 
       break;
+    if (longest_subsequence + max_error < (read_length - cumulative_subsequences)/(max_error + 1 - j))
+      return 0;
+
+    cumulative_subsequences += longest_subsequence;
     //printf("Longest subsequence: %d\n", longest_subsequence);
     //printf("Mask: \t");
     //print128_bit(diff_XMM[index_of_mask]);
@@ -558,7 +570,9 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
   // Remove the mask
   //printf("before mask removal:\n");
   //print128_bit(result_XMM);
+
   result_XMM = _mm_andnot_si128(temp_mask, result_XMM);
+
   //printf("After mask removal:\n");
   //print128_bit(result_XMM);
   // Shift back into correct position (shift left 1)
@@ -567,6 +581,7 @@ int bit_magnet_filter_m128_sse1(uint8_t *read_vec0, uint8_t *read_vec1, uint8_t
   //result_XMM = shift_left_sse1(result_XMM, 1);
   //printf("After shifting:\n");
   //print128_bit(result_XMM);
+
   // Find the difference
   total_difference = popcount1_m128i_sse(result_XMM);
 

@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
   l2hashtable.l2_read_from_file(hashtable_filename);
   hashtable.set_l2_hashtable(&l2hashtable);
   do_filter = true;
+  do_filter2 = true;
   fasthash_seed_selection = false;
 
   // Load BWT tables
@@ -51,9 +52,11 @@ int main(int argc, char** argv) {
   uint32_t reserve_size = 5000000;
   locations.reserve(reserve_size);
   reverse_locations.reserve(reserve_size);
+  locations.push_back(0);
+  reverse_locations.push_back(0);
 
-  fprintf(stderr, "Locations: %p - %p\n", &locations, &locations + reserve_size);
-  fprintf(stderr, "Locations2: %p - %p\n", &reverse_locations, &reverse_locations + reserve_size);
+  fprintf(stderr, "Locations:%p-%p\n", &(locations.at(0)), &(locations.at(0)) + reserve_size);
+  fprintf(stderr, "Locations2:%p-%p\n", &(reverse_locations.at(0)), &(reverse_locations.at(0)) + reserve_size);
 
   decompress_dna = &decompress_2bit_dna;
 
@@ -119,6 +122,21 @@ int main(int argc, char** argv) {
       filter_read_locations = &QGRAM;
       break;
   }
+  switch(second_filter_algorithm) {
+    case FilterAlgorithm::none: 
+      filter_read_locations2 = &NoFilter;
+      do_filter2 = false;
+      break;
+    case FilterAlgorithm::SHD: 
+      filter_read_locations2 = &SHD;
+      break;
+    case FilterAlgorithm::MAGNET: 
+      filter_read_locations2 = &MAGNET;
+      break;
+    case FilterAlgorithm::QGRAM: 
+      filter_read_locations2 = &QGRAM;
+      break;
+  }
 
   // Load Read File
   gzFile fp;
@@ -148,16 +166,19 @@ int main(int argc, char** argv) {
 
   // Init seed solver
   solver->init(read_length, number_of_seeds, hashtable.get_seed_size(), limit);
+  fasthash.init(read_length, number_of_seeds, hashtable.get_seed_size(), number_of_seeds + fasthash_seeds, seed_selection == SeedSelection::optimal ? 1 : 0);
 
   // Prepare Smith Waterman step
   swa_threshold = read_length - error_threshold;
 
   // Initialize the read information for simple batching.
 
-  time_seeds=0; time_locations=0; time_filter=0; time_swa=0;
+  time_seeds=0; time_locations=0; time_filter=0; time_swa=0, time_decompress=0, total_shift_time = 0;
 
+  cout << "start" << endl;
   // PIPELINE
   do {
+    //cout << ks->name.s << "\n";
     // Pre filter out erroneous reads
     if (!pre_filter(ks->seq.s))
       continue;
@@ -167,13 +188,15 @@ int main(int argc, char** argv) {
 
   } while (kseq_read(ks) >= 0);
 
+  cout << "end" << endl;
 
+  double period = 1000000000;
+  double total_time = time_seeds + time_locations + time_filter + time_swa + total_shift_time;
   cerr << "Timing: " << endl;
-  cerr << "Seeds: " << time_seeds << endl;
-  cerr << "Locations: " << time_locations << endl;
-  cerr << "Filters: " << time_filter << endl;
-  cerr << "SWA: " << time_swa << endl;
-  cerr << "Total: " << time_seeds + time_locations + time_filter + time_swa << endl;
+  cerr << "Seeds: " << time_seeds/period << "\tPercent: " << time_seeds/total_time << endl;
+  cerr << "Filters: " << time_filter/period << "\tPercent: " << time_filter/total_time << endl;
+  cerr << "SWA: " << time_swa/period << "\tPercent: " << time_swa/total_time << endl;
+  cerr << "Total: " << total_time/period << endl;
 
   // Free memory that was used.
   kseq_destroy(ks);
@@ -186,57 +209,50 @@ int main(int argc, char** argv) {
 }
 
 // Maps a single read.
-void map_read(string read) {
+void map_read(const string &read) {
 
   locations.clear();
   reverse_locations.clear();
 
-  auto start = chrono::steady_clock::now();
-  auto end = chrono::steady_clock::now();
+  chrono::time_point<chrono::steady_clock> start, end;
   // Get the reverse read to map as well.
   string reverse = reverse_read(read);
+  uint8_t seeds[number_of_seeds + fasthash_seeds];
+  uint8_t reverse_seeds[number_of_seeds + fasthash_seeds];
 
+  start = chrono::steady_clock::now();
   // seed selection
   if (!fasthash_seed_selection && !optimal_seed_selection) {
-    start = chrono::steady_clock::now();
-    uint8_t seeds[number_of_seeds];
-    uint8_t reverse_seeds[number_of_seeds];
     solver->solveDNA(read, seeds);
     solver->solveDNA(reverse, reverse_seeds);
-    end = chrono::steady_clock::now();
-    time_seeds += (end - start).count();
 
     // location selection
-    start = chrono::steady_clock::now();
     // Keep locations on the stack unless I have to move them.
-    get_locations(&read, seeds, locations);
-    get_locations(&reverse, reverse_seeds, reverse_locations);
-    end = chrono::steady_clock::now();
-    time_locations += (end - start).count();
+    get_locations(read, seeds, locations);
+    get_locations(reverse, reverse_seeds, reverse_locations);
   }
-  else {
-    start = chrono::steady_clock::now();
-    solver->solveDNA(read, locations);
-    solver->solveDNA(reverse, reverse_locations );
-    end = chrono::steady_clock::now();
-    time_locations += (end - start).count();
+  else { // OSS and FastHash
+    solver->solveDNA(read, seeds, locations);
+    solver->solveDNA(reverse, reverse_seeds, reverse_locations );
   }
 
   std::sort(locations.begin(), locations.end());
   locations.erase(std::unique(locations.begin(), locations.end()), locations.end());
   std::sort(reverse_locations.begin(), reverse_locations.end());
   reverse_locations.erase(std::unique(reverse_locations.begin(), reverse_locations.end()), reverse_locations.end());
+  end = chrono::steady_clock::now();
+  time_seeds += (end - start).count();
 
   // filtering and SWA
 
-  cout << read << "\n";
-  filter_and_finalize_reads(&read, locations);
-  cout << "Reverse:" << "\n";
-  filter_and_finalize_reads(&reverse, reverse_locations);
+  //cout << read << "\n";
+  filter_and_finalize_reads(read, locations);
+  //cout << "Reverse:" << "\n";
+  filter_and_finalize_reads(reverse, reverse_locations);
 }
 
 // Reverses and inverts the string. O(N) complexity.
-string reverse_read(string read) {
+string reverse_read(const string &read) {
   string reverse = read;
   for (uint32_t i = 0; i < read_length; i++) {
     reverse[read_length-1-i] = reverse_values[char_values[read[i]] ^ 0x03];
@@ -245,13 +261,13 @@ string reverse_read(string read) {
 }
 
 // Uses one of the seed solvers to get the seeds
-void get_seeds(string * read, uint8_t * seeds) {
-  solver->solveDNA(*read, seeds);
+void get_seeds(const string &read, uint8_t * seeds) {
+  solver->solveDNA(read, seeds);
 }
 
 // Uses the seeds found using the seed selection step
 // Gets all of the locations, puts into a set (no duplicates)
-void get_locations(string * read, uint8_t * seeds, std::vector<uint32_t> & locations) {
+void get_locations(const string &read, uint8_t * seeds, std::vector<uint32_t> & locations) {
   // Set up variables
   uint32_t seed;
   uint32_t hash;
@@ -261,12 +277,12 @@ void get_locations(string * read, uint8_t * seeds, std::vector<uint32_t> & locat
   uint32_t l2_frequency;
   uint32_t location;
   uint32_t l2_seed_size = l2hashtable.l2_get_l2_seed_size();
-  const char * rd = read->c_str();
+  const char * rd = &(read[0]);
 
   // Loop through every seed
   for(uint32_t i = 0; i < number_of_seeds; i++) {
     seed = seeds[i];
-    hash = hashtable.get_hash(&((*read)[seed]));
+    hash = hashtable.get_hash(&(read[seed]));
     offset = hashtable.get_offset(hash);
     frequency = hashtable.get_frequency(hash);
 
@@ -283,9 +299,8 @@ void get_locations(string * read, uint8_t * seeds, std::vector<uint32_t> & locat
       int order_fix = 0;
       if(number_of_seeds%2 == 0 && i >= number_of_seeds/2)
 	order_fix = 1;
-      int idx = (number_of_seeds%2 == 0) ? (number_of_seeds/2 - 1) : number_of_seeds / 2;
+      //int idx = (number_of_seeds%2 == 0) ? (number_of_seeds/2 - 1) : number_of_seeds / 2;
       uint32_t j = 0;
-      uint32_t jj = 0;
       // Elements before seed: i + order_fix
       for (; j < i + order_fix; j++) {
 	uint8_t pearson = l2hashtable.pearsonHash(rd+seed-((j+1)*l2_seed_size));
@@ -313,7 +328,7 @@ void get_locations(string * read, uint8_t * seeds, std::vector<uint32_t> & locat
 }
 
 // Filters and finalizes the reads using the specified filters, SWA implementations
-void filter_and_finalize_reads(string * read, std::vector<uint32_t> & locations) {
+void filter_and_finalize_reads(const string &read, std::vector<uint32_t> & locations) {
   char reference[read_length];
   chrono::time_point<chrono::steady_clock> start, end;
   // Implement filters, based on flags set.
@@ -322,28 +337,33 @@ void filter_and_finalize_reads(string * read, std::vector<uint32_t> & locations)
     decompress_dna(reference, *it);
     // Filter
     start = chrono::steady_clock::now();
-    bool pass_filter = fasthash_seed_selection | !do_filter;
-    if (!pass_filter)
+    int pass_filter = do_filter ? 0 : 1;
+    if (do_filter)
       pass_filter = filter_read_locations(read, reference);
+    if(do_filter2 && pass_filter == 1)
+      pass_filter = filter_read_locations2(read, reference);
     end = chrono::steady_clock::now();
     time_filter += (end - start).count();
-    if (pass_filter && do_swa) {
+    if (pass_filter ==1 && do_swa) {
       // SWA
       start = chrono::steady_clock::now();
       bool pass_swa = finalize_read_locations(read, reference);
       end = chrono::steady_clock::now();
       time_swa += (end - start).count();
       if (pass_swa) {
-	cout << *it << " ";
+	//cout << *it << " ";
       }
     }
+    else if(pass_filter == 2 && do_swa) {
+      //cout << *it << " ";
+    }
   }
-  cout << "\n";
+  //cout << "\n";
 }
 
 // Returns false if read contains too many N's
-bool pre_filter(string read) {
-  int count = 0;
+bool pre_filter(const string &read) {
+  uint32_t count = 0;
   for(uint32_t i = 0; i < read_length; i++) {
     if (read[i] == 'N'){
       count++;
@@ -355,21 +375,21 @@ bool pre_filter(string read) {
 }
 
 // No SWA alignment
-bool NoSWA(string * read, char * reference) {
+bool NoSWA(const string &read, char * reference) {
   return true;
 }
 
 // Aligns using seqalign
-bool SWA_Seqalign(string * read, char * reference) {
-  return swaligner.sw_align(read->c_str(), reference, swa_threshold);
+bool SWA_Seqalign(const string &read, char * reference) {
+  return swaligner.sw_align(&(read[0]), reference, swa_threshold);
 }
 
 // Aligns using edlib
 // This can be optimized further.
-bool Meyers_Edlib(string * read, char * reference) {
+bool Meyers_Edlib(const string &read, char * reference) {
   bool res = false;
-  EdlibAlignResult result = edlibAlign(read->c_str(), read_length, reference, read_length, edlibNewAlignConfig(error_threshold, EDLIB_MODE_NW, EDLIB_TASK_DISTANCE, NULL, 0));
-  if (result.editDistance != -1 ){
+  EdlibAlignResult result = edlibAlign(&(read[0]), read_length, reference, read_length, edlibNewAlignConfig(error_threshold, EDLIB_MODE_HW, EDLIB_TASK_DISTANCE, NULL, 0));
+  if (result.editDistance != -1  && result.alignmentLength >= read_length - error_threshold ){
     res = true;
   }
   edlibFreeAlignResult(result);
@@ -377,14 +397,14 @@ bool Meyers_Edlib(string * read, char * reference) {
 }
 
 // Converts the read from ACTG to 0 1 2 3
-void convert_for_opal(string read, unsigned char * destination, uint32_t read_length) {
+void convert_for_opal(const char *read, unsigned char * destination, uint32_t read_length) {
   for (uint32_t i = 0; i < read_length; i++) {
     destination[i] = (unsigned char)char_values[read[i]];
   }
 }
 
 // Aligns using opal
-bool Opal(string * read, char * reference) {
+bool Opal(const string &read, char * reference) {
   // Need a function to convert read to 0,1,2,3
   // Need a function to convert the reference to 0,1,2,3 (unsigned char)
   unsigned char rd[read_length];
@@ -394,37 +414,37 @@ bool Opal(string * read, char * reference) {
   reference_lengths[0] = read_length;
   int reference_length = 1;
 
-  convert_for_opal(*read, rd, read_length);
+  convert_for_opal(&(read[0]), rd, read_length);
   convert_for_opal(reference, rf, read_length);
   ref[0] = rf;
 
   return opal_aligner.opal_swa(rd, read_length, ref, reference_length, reference_lengths);
 }
 
-bool SSW(string * read, char * reference) {
-  StripedSmithWaterman::Aligner aligner;
-  StripedSmithWaterman::Filter filter;
+bool SSW(const string &read, char * reference) {
+  StripedSmithWaterman::Aligner aligner(1, 1, 1, 1);
+  StripedSmithWaterman::Filter filter(false, false, read_length - error_threshold, read_length + error_threshold);
   StripedSmithWaterman::Alignment alignment;
-  aligner.Align(read->c_str(), reference, read_length, filter, &alignment, read_length);
-  if (alignment.sw_score >= 190)
+  aligner.Align(&(read[0]), reference, read_length, filter, &alignment, read_length);
+  if (alignment.sw_score >= read_length - error_threshold)
     return true;
   return false;
 }
 
-bool NoFilter(string * read, char * reference) {
-  return true;
+int NoFilter(const string &read, char * reference) {
+  return 1;
 }
 
-bool SHD(string * read, char * reference) {
-  return shd_filter.filter(read->c_str(), reference, error_threshold, read_length);
+int SHD(const string &read, char * reference) {
+  return shd_filter.filter(&(read[0]), reference, error_threshold, read_length);
 }
 
-bool MAGNET(string * read, char * reference) {
-  return shd_filter.magnet(read->c_str(), reference, error_threshold, read_length);
+int MAGNET(const string &read, char * reference) {
+  return shd_filter.magnet(&(read[0]), reference, error_threshold, read_length);
 }
 
-bool QGRAM(string * read, char * reference) {
-  return true;
+int QGRAM(const string &read, char * reference) {
+  return 1;
 }
 
 // Read the genome into 8 bit representation, using 0 1 2 3 instead of ACTG
@@ -469,8 +489,7 @@ void read_genome_2bit() {
   // size: 3.2 billion / 4 Bytes (approx 0xc0000000 >> 5 => 0x6000000)
   // WRONG! FIX ME.
   genome = (uint64_t *)malloc(0x7000000*sizeof(uint64_t));
-  fprintf(stderr, "Genome: %p-%p\n", genome, genome + 0x7000000);
-  fprintf(stderr, "Char_to_2bit: %p-%p\n", char_values, char_values+128);
+  fprintf(stderr, "Genome:%p-%p\n", genome, genome + 0x7000000);
   string genome_filename = hashtable_filename;
   genome_filename += ".fasta";
   ifstream fasta(genome_filename.c_str());

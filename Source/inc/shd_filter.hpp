@@ -10,7 +10,7 @@ class SHDFilter {
     char blank_string[128];
   public:
     SHDFilter();
-    bool filter(const char * read, const char * ref, int error, int read_length);
-    bool magnet(const char * read, const char * ref, int error, int read_length);
+    int filter(const char * read, const char * ref, int error, int read_length);
+    int magnet(const char * read, const char * ref, int error, int read_length);
 };
 #endif //SHD_FILTER_H_

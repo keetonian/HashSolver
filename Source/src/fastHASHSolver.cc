@@ -48,7 +48,7 @@ uint32_t FastHASHSolver::get_seed_size() {
   return hashtable->get_seed_size();
 }
 
-int FastHASHSolver::solveDNA(string DNA, std::vector<uint32_t> &locations) {
+int FastHASHSolver::solveDNA(const string &DNA, std::vector<uint32_t> &locations) {
   assert(DNA.length() == readLength);
 
   uint32_t location;

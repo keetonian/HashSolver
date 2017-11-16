@@ -160,7 +160,7 @@ void Hashtable::read_frequencies_from_file(const char * name){
   data = fread(frequencies, sizeof(uint64_t), frequencies_size, f);
   if(data != frequencies_size)
     printf("Elements read: %zu/%zu\n", data, frequencies_size);
-  fprintf(stderr, "L1 Hashtable.frequencies: %p-%p\n", frequencies, frequencies+frequencies_size);
+  fprintf(stderr, "L1Hashtable.frequencies:%p-%p\n", frequencies, frequencies+frequencies_size);
   fclose(f);
 }
 
@@ -179,7 +179,7 @@ void Hashtable::read_offsets_from_file(const char * name){
   size_t data = fread(offsets, sizeof(uint32_t), offsets_size, f);
   if(data != offsets_size)
     printf("Elements read: %zu/%zu\n", data, offsets_size);
-  fprintf(stderr, "L1 Hashtable.offsets: %p-%p\n", offsets, offsets+offsets_size);
+  fprintf(stderr,"L1Hashtable.offsets:%p-%p\n", offsets, offsets+offsets_size);
   fclose(f);
 }
 
@@ -224,7 +224,7 @@ void Hashtable::read_locations_from_file(const char * name){
   data = fread(locations, sizeof(uint32_t), locations_size, f);
   if(data != locations_size)
     printf("Not enough memory. Elements read: %zu/%zu\n", data, locations_size);
-  fprintf(stderr, "L1 Hashtable.locations: %p-%p\n", locations, locations+locations_size);
+  fprintf(stderr, "L1Hashtable.locations:%p-%p\n", locations, locations+locations_size);
   fclose(f);
 }
 

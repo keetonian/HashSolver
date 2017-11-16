@@ -21,6 +21,8 @@ int main(int argc, char** argv){
   Hashtable hashtable = Hashtable(name);
   L2Hashtable l2hashtable = L2Hashtable(name);
 
+  hashtable.set_l2_hashtable(&l2hashtable);
+
   seed_size = hashtable.get_seed_size();
 
   vector<char> genome;

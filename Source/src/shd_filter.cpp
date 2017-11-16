@@ -10,18 +10,14 @@ SHDFilter::SHDFilter() {
   strncpy(shd_ref, blank_string, 128);
 }
 
-bool SHDFilter::magnet(const char * read, const char * ref, int error, int read_length) {
+int SHDFilter::magnet(const char * read, const char * ref, int error, int read_length) {
   strncpy(shd_read, read, read_length);
   strncpy(shd_ref, ref, read_length);
-  if(bit_magnet_filter_sse1(shd_read, shd_ref, read_length, error))
-    return true;
-  return false;
+  return bit_magnet_filter_sse1(shd_read, shd_ref, read_length, error);
 }
 
-bool SHDFilter::filter(const char * read, const char * ref, int error, int read_length) {
+int SHDFilter::filter(const char * read, const char * ref, int error, int read_length) {
   strncpy(shd_read, read, read_length);
   strncpy(shd_ref, ref, read_length);
-  if(bit_vec_filter_sse1(shd_read, shd_ref, read_length, error))
-    return true;
-  return false;
+  return bit_vec_filter_sse1(shd_read, shd_ref, read_length, error);
 }

@@ -17,7 +17,7 @@ int main(int argc, char** argv){
     exit(1);
   }
   string name = argv[1];
-  Hashtable hashtable = Hashtable(name);
+  Hashtable hashtable(name);
   cout << "Read l1 files" << endl;
 
   seed_size = hashtable.get_seed_size();

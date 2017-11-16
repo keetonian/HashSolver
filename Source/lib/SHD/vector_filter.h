@@ -16,6 +16,9 @@
 #include <nmmintrin.h>
 
 // read and ref need to be 16 aligned
+
+extern double total_shift_time;
+
 void bit_vec_filter_sse_simulate1(char* read, char* ref, int length, int max_error, int loc_num);
 void bit_vec_filter_no_flipping_sse_simulate1(char* read, char* ref, int length, int max_error, int loc_num);
 void bit_vec_filter_sse_simulate11(char* read, char* ref, int length, int max_error, int loc_num);

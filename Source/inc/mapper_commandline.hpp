@@ -14,10 +14,12 @@ extern uint8_t filters;
 extern SeedSelection seed_selection;
 extern SWAFunction swa_function;
 extern FilterAlgorithm filter_algorithm;
+extern FilterAlgorithm second_filter_algorithm;
 extern uint32_t number_of_seeds;
 extern uint32_t error_threshold;
 extern uint32_t limit;
 extern bool do_swa;
+extern int fasthash_seeds;
 std::string version = "1.0";
 std::string default_directory = ".";
 
@@ -51,6 +53,8 @@ void print_options(){
   std::cout << "\t\t\t1: Use SHD filtering" << std::endl;
   std::cout << "\t\t\t2: Use MAGNET filtering" << std::endl;
   std::cout << "\t\t\t3: Use Q-gram filtering (NOT IMPLEMENTED)" << std::endl;
+  std::cout << "-F  --fasthash\t Use fast hash filter:" << std::endl;
+  std::cout << "\t\t\t#: # of extra seeds to use in fasthash filter" << std::endl;
   std::cout << "-d  --directory\tOutput to the specified directory." << std::endl;
   std::cout << "-h  --help\tPrint this message." << std::endl;
   std::cout << "-v  --version\tPrint the software version" << std::endl;
@@ -73,6 +77,7 @@ int parseCommands(int argc, char** argv){
     {"paired",	    required_argument,	0,  'p'},
     {"swa-option",  required_argument,  0,  'x'},
     {"filter",	    required_argument,  0,  'f'},
+    {"fasthash",    required_argument,  0,  'F'},
     {"directory",   required_argument,  0,  'd'},
     {"help",	    no_argument,	0,  'h'},
     {"version",	    no_argument,	0,  'v'},
@@ -84,11 +89,14 @@ int parseCommands(int argc, char** argv){
   do_swa = true;
   seed_selection = SeedSelection::hobbes;
   swa_function = SWAFunction::edlib;
+  fasthash_seeds = 0;
+  second_filter_algorithm = FilterAlgorithm::none;
+  FilterAlgorithm *filt = & filter_algorithm;
 
   // Check that only one seed selection algorithm is selected.
   // Load all options into variables.
   // Defaults: naive seed selection, no filters, write to std out.
-  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:x:f:b:psqd:vh", longOptions, &index)) != -1){
+  while( (c = getopt_long(argc, argv, "r:t:s:e:l:c:x:f:F:b:psqd:vh", longOptions, &index)) != -1){
     switch(c)
     {
       case 't':
@@ -148,15 +156,19 @@ int parseCommands(int argc, char** argv){
 	break;
       case 'f':
 	switch(atoi(optarg)) {
-	  case 0: filter_algorithm = FilterAlgorithm::none;
+	  case 0: *filt = FilterAlgorithm::none;
 		  break;
-	  case 1: filter_algorithm = FilterAlgorithm::SHD;
+	  case 1: *filt = FilterAlgorithm::SHD;
 		  break;
-	  case 2: filter_algorithm = FilterAlgorithm::MAGNET;
+	  case 2: *filt = FilterAlgorithm::MAGNET;
 		  break;
-	  case 3: filter_algorithm = FilterAlgorithm::QGRAM;
+	  case 3: *filt = FilterAlgorithm::QGRAM;
 		  break;
 	}
+	filt = &second_filter_algorithm;
+	break;
+      case 'F':
+	fasthash_seeds = atoi(optarg);
 	break;
       case 'h':
 	print_options();

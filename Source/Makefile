@@ -28,7 +28,7 @@ BWA_ITEMS=-I $(BWA)/ -L $(BWA) -lbwa
 
 MODERN_BWA=$(OBJ)/utils.o $(OBJ)/malloc_wrap.o
 
-SEED_SOLVERS=$(OBJ)/l1_hobbes_solver.o $(OBJ)/l1_basic_solver.o $(OBJ)/fasthashsolver.o $(OBJ)/optimalsolverln.o
+SEED_SOLVERS=$(OBJ)/l1_hobbes_solver.o $(OBJ)/l1_basic_solver.o $(OBJ)/fasthashsolver.o $(OBJ)/optimalsolverln.o $(OBJ)/fast_hash_solver.o
 MAPPER_ITEMS=$(SWA_ITEMS) $(SHD_ITEMS) $(EDLIB_ITEMS) $(OPAL_ITEMS) $(SSW_ITEMS) $(BWA_ITEMS)
 
 L1Baseline=$(BIN)/L1BaselineConstructor $(BIN)/L1BaselineQuery $(BIN)/L1BaselineCheck $(BIN)/L1BaselinePrintSeed $(BIN)/L1BaselineMapper
@@ -79,14 +79,17 @@ $(OBJ)/l2_hobbes_solver.o: $(SRC)/l2_hobbes_solver.cc $(OBJ)/l1_hashtable.o $(OB
 $(OBJ)/sw_aligner.o: $(SRC)/sw_aligner.cpp 
 	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(SWA_ITEMS)
 
-$(OBJ)/shd_filter.o: $(SRC)/shd_filter.cpp $(SHD_OBJECTS)
+$(OBJ)/shd_filter.o: $(SRC)/shd_filter.cpp 
 	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(SHD_ITEMS)
 
-$(OBJ)/opal_aligner.o: $(SRC)/opal_aligner.cpp $(OPAL)/src/opal.o
+$(OBJ)/opal_aligner.o: $(SRC)/opal_aligner.cpp
 	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(OPAL_ITEMS)
 
 $(OBJ)/optimalsolverln.o: $(SRC)/optimalSolverLN.cc
-	$(OLDCXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(BWA_ITEMS)
+	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) $(BWA_ITEMS)
+
+$(OBJ)/fast_hash_solver.o: $(SRC)/fast_hash_solver.cpp
+	$(CXX) $(CFLAGS) -c $^ -o $@ -I $(INC) -I $(BWA)/
 
 
 

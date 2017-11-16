@@ -7,6 +7,10 @@
 #include "bwt.h"
 //#define DEBUG
 
+
+extern vector<uint32_t> SeedFrequencies;
+extern vector<uint32_t> SeedOffsets;
+
 unsigned char nst_nt4_table[256] = { 
         4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  
         4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  4, 4, 4, 4,  
@@ -515,16 +519,21 @@ void OptimalSolverLN::loadTables(void * table) {
   loadBwt((bwt_t*)table, MIN_LENGTH);
 }
 
-int OptimalSolverLN::solveDNA(string DNA, std::vector<uint32_t> & v) {
+int OptimalSolverLN::solveDNA(const string &DNA, uint8_t * s, std::vector<uint32_t> & v) {
 	fillMatrix(DNA);
 	calculateLastDiv();
 	processedReads++;
 	backtrack();
 	for(uint32_t i=0; i<seedNum; i++) { 
+	  SeedFrequencies[i] = seeds[i].sa_end - seeds[i].sa_begin; // FAST HASH
+	  SeedOffsets[i] = seeds[i].sa_begin; // FAST HASH
+	  s[i] = seeds[i].start;
 	  for(uint32_t j=seeds[i].sa_begin; j<=seeds[i].sa_end; j++) {
 	    v.push_back(bwt_sa(bwt, j) - seeds[i].start);
 	  }
 	}
+
+	//printSeeds(cout);
 
 	return calcualteFreq();
 }
@@ -645,6 +654,8 @@ void OptimalSolverLN::printSeeds(ostream& stream) {
 		stream << "Seed[" << i << "]: start: " << seeds[i].start;
 		stream << " end: " << seeds[i].end;
 		stream << " frequency: " << seeds[i].frequency;
+		stream << " sa_begin: " << seeds[i].sa_begin;
+		stream << " sa_end: " << seeds[i].sa_end;
 		stream << endl;
 	}
 }

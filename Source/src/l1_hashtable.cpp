@@ -150,7 +150,7 @@ void Hashtable::read_table_from_file(const char * name){
   data = fread(hashtable, sizeof(info), table_size, f);
   if(data != table_size)
     printf("Elements read: %zu/%zu\n", data, table_size);
-  fprintf(stderr, "L1 Hashtable.hashtable: %p-%p\n", hashtable, hashtable+table_size);
+  fprintf(stderr, "L1Hashtable.hashtable:%p-%p\n", hashtable, hashtable+table_size);
   fclose(f);
 }
 
@@ -192,7 +192,7 @@ void Hashtable::read_locations_from_file(const char * name){
   data = fread(locations, sizeof(uint32_t), locations_size, f);
   if(data != locations_size)
     printf("Not enough memory. Elements read: %zu/%zu\n", data, locations_size);
-  fprintf(stderr, "L1 Hashtable.locations: %p-%p\n", locations, locations+locations_size);
+  fprintf(stderr, "L1Hashtable.locations:%p-%p\n", locations, locations+locations_size);
   fclose(f);
 }
 
